@@ -20,7 +20,7 @@ function debugLog(msg) {
     const dir = path.join(home, 'storage', 'dsa-preset')
     fs.mkdirSync(dir, { recursive: true })
     fs.appendFileSync(path.join(dir, 'debug.log'), `${new Date().toISOString()} ${msg}\n`)
-  } catch { /* 调试日志写入失败不影响运行 */ }
+  } catch { /* debug log write failures never affect runtime */ }
 }
 
 /**
@@ -30,8 +30,9 @@ function debugLog(msg) {
  * through its own panel are declared loosely so legacy entry config survives.
  */
 export const Config = z.object({
-  // volatile = 可由设置面板/运行时实时编辑；0.2 的 describe 只收录
-  // 「至少含一个 volatile 字段」的条目，漏标会导致整个命名空间消失
+  // volatile = editable live from the settings panel or runtime; the 0.2
+  // describe API only includes entries with at least one volatile field,
+  // so a missing marker hides the whole namespace
   requestRetries: RequestRetrySectionSchema.default(
     structuredClone(DEFAULT_REQUEST_RETRY_SETTINGS.requestRetries),
   ).volatile(),
@@ -70,7 +71,7 @@ export function apply(ctx, config = {}) {
     }
   }
 
-  // 25 秒后记录官方 describe 的可见命名空间（等 loader 与各 effect 稳定）
+  // Log the visible describe namespaces after 25 s (once loader and effects settle)
   const probe = setTimeout(() => {
     try {
       const list = ctx.settings.describe

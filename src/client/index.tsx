@@ -1,12 +1,12 @@
 import type { ClientRemote, ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelPalette } from './ModelPalette.tsx'
-import { en, NS, zh } from './locales.ts'
+import { en, NS } from './locales.ts'
 import { paletteApi } from './remote-compat.ts'
 import type { DirectoryStore, PaletteProps, Selection, SelectionOutcome } from './types.ts'
 import './style.css'
 
 interface LocaleService {
-  register(namespace: string, dictionaries: { zh: Record<string, string>; en: Record<string, string> }): () => void
+  register(namespace: string, dictionaries: { en: Record<string, string>; zh?: Record<string, string> }): () => void
 }
 
 interface DirectoryHandle {
@@ -59,7 +59,7 @@ export const inject = [
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsa-preset: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { en }), 'dsa-preset: dictionaries')
   ctx.inject(['slots', 'modelDirectories', 'sessions'], (scope) => {
     scope.slots.inject(
       'conversation.input.model',
