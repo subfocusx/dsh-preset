@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>dsh-model-palette v0.12.0 · DeepSeek Harness 全局模型命令面板</title>
-<meta name="description" content="dsh-model-palette v0.12.0：适配 @deepseek-ai/dsh 0.1.6-alpha.2，区分凭据失败与协议不兼容，并提供 Responses 优先、Re/CC 安全切分、请求重试、B.AI 中继与 OpenRouter 工具。" />
+<title>dsa-preset v0.12.0 · DeepSeek Harness 全局模型命令面板</title>
+<meta name="description" content="dsa-preset v0.12.0：适配 @deepseek-ai/dsh 0.1.6-alpha.2，区分凭据失败与协议不兼容，并提供 Responses 优先、Re/CC 安全切分、请求重试、B.AI 中继与 OpenRouter 工具。" />
 <style>
   :root {
     --bg: #0b1220;
@@ -529,7 +529,7 @@
 <nav>
   <div class="nav-brand">
     <img src="icon.svg" alt="logo" />
-    <span>dsh-model-palette</span>
+    <span>dsa-preset</span>
   </div>
   <div class="nav-links">
     <a href="#demo">在线演示</a>
@@ -545,7 +545,7 @@
 
 <header class="hero">
     <div class="hero-badge"><span class="dot"></span> DeepSeek Harness 官方插件生态 · v0.12.0</div>
-  <img class="hero-logo" src="icon.svg" alt="DSH Model Palette icon" />
+  <img class="hero-logo" src="icon.svg" alt="DSA Preset icon" />
   <h1>全局模型命令面板，<br class="mobile-br" /><span class="grad">一键掌控所有供应商</span></h1>
   <p class="tagline">
     为 DeepSeek Harness Web 打造。按 <kbd>Alt+M</kbd>，在任何界面中模糊搜索、筛选、收藏并切换来自所有供应商的模型 —— 还能直接配置线路、管理密钥、生成图像与视频。
@@ -567,7 +567,7 @@
   <div class="demo-window">
     <div class="demo-bar">
       <div class="traffic"><span></span><span></span><span></span></div>
-      <div class="bar-title">DeepSeek Harness — <b>dsh-model-palette 在线演示</b></div>
+      <div class="bar-title">DeepSeek Harness — <b>dsa-preset 在线演示</b></div>
     </div>
     <div class="demo-hint">
       <kbd>Alt</kbd>+<kbd>M</kbd>
@@ -741,7 +741,7 @@
       </ul>
     </div>
     <pre><span class="cm"># ~/.dsh/settings.yaml（也可直接在插件界面配置）</span>
-dsh-model-palette:
+dsa-preset:
   requestRetries:
     providers:
       bankofai:
@@ -959,7 +959,7 @@ dsh web</pre>
   <div class="sec-head">
     <div class="tag">Provider Relays</div>
     <h2>中继是插件内置能力，不是另一个插件</h2>
-    <p>DSH 请求先到本机 dsh-model-palette 后端，再由同 provider 的连接策略访问经过核验的 B.AI 入口；API key 仍由 DSH credentials 管理。这里的策略切换不等于切换 provider 或模型。</p>
+    <p>DSH 请求先到本机 dsa-preset 后端，再由同 provider 的连接策略访问经过核验的 B.AI 入口；API key 仍由 DSH credentials 管理。这里的策略切换不等于切换 provider 或模型。</p>
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="relay-bai">B.AI 内置中继</button>
@@ -967,7 +967,7 @@ dsh web</pre>
   </div>
   <div class="tab-pane active" id="relay-bai">
     <pre><span class="cm"># 在模型配置中使用；端口以中继配置页显示为准</span>
-baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+baseURL: http://127.0.0.1:3080/dsa-preset/api/bai-relay/v1
 
 <span class="cm"># 401 = 已到达 B.AI，检查 credential</span>
 <span class="cm"># 503 / 502 / 504 / Cloudflare 403 / ECONNRESET = 切换下一条 B.AI 策略</span>
@@ -975,7 +975,7 @@ baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
 <span class="cm"># 503 UPSTREAM_TRANSIENT = 所有 B.AI 策略均失败</span></pre>
   </div>
   <div class="tab-pane" id="relay-generic">
-    <pre>- id: dsh-model-palette
+    <pre>- id: dsa-preset
   config:
     providerRelays:
       example-provider:
@@ -990,7 +990,7 @@ baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
         retryBodyLimitBytes: 16777216
 
 <span class="cm"># Provider Base URL</span>
-http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1</pre>
+http://127.0.0.1:3080/dsa-preset/api/relay/example-provider/v1</pre>
   </div>
 </section>
 
@@ -1007,7 +1007,7 @@ http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1</pre>
   </div>
   <div class="tab-pane active" id="media-yaml">
     <pre><span class="cm"># 在 cordis.patch.yml 或你的 profile 补丁中加入</span>
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     openrouterMedia:
       enabled: true
@@ -1063,7 +1063,7 @@ http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1</pre>
 <!-- CTA -->
 <div class="cta-band">
   <h2>让模型切换变得像呼吸一样自然</h2>
-  <p>安装 dsh-model-palette，在 DeepSeek Harness Web 中体验真正流畅的全局模型管理。</p>
+  <p>安装 dsa-preset，在 DeepSeek Harness Web 中体验真正流畅的全局模型管理。</p>
   <div class="hero-actions">
     <a class="btn btn-primary" href="#install">⚡ 立即安装</a>
     <a class="btn btn-ghost" href="#demo">回到演示</a>
@@ -1082,7 +1082,7 @@ http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1</pre>
     <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/README.zh-CN.md">中文文档</a>
     <a href="https://github.com/Jensen-Yao/dsh-model-palette/blob/main/CHANGELOG.md">更新日志</a>
   </div>
-  <div>© <span id="year"></span> Jensen Yao · dsh-model-palette · 为 DeepSeek Harness 生态用心打造 ❤️</div>
+  <div>© <span id="year"></span> Jensen Yao · dsa-preset · 为 DeepSeek Harness 生态用心打造 ❤️</div>
 </footer>
 
 <script>

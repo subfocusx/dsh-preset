@@ -56,7 +56,7 @@ async function invoke(handler, path, body, headers = {}) {
 
 describe('OpenRouter media registration', () => {
   it('registers five tools through Cordis effects', () => {
-    const outputDir = mkdtempSync(join(tmpdir(), 'dsh-model-palette-'))
+    const outputDir = mkdtempSync(join(tmpdir(), 'dsa-preset-'))
     const toolNames = []
     const effectLabels = []
     const routes = []
@@ -100,7 +100,7 @@ describe('OpenRouter media registration', () => {
       'openrouter_download_video',
     ])
     expect(effectLabels).toHaveLength(6)
-    expect(routes).toMatchObject([{ kind: 'prefix', path: '/model-palette/api/media' }])
+    expect(routes).toMatchObject([{ kind: 'prefix', path: '/dsa-preset/api/media' }])
   })
 
   it('rejects a relative output directory before registration', () => {
@@ -116,18 +116,18 @@ describe('OpenRouter media registration', () => {
     const handler = createMediaApiHandler({
       models: async (args) => ({ received: args }),
     })
-    const response = await invoke(handler, '/model-palette/api/media/models', { kind: 'image' })
+    const response = await invoke(handler, '/dsa-preset/api/media/models', { kind: 'image' })
     expect(response).toEqual({ status: 200, body: { ok: true, value: { received: { kind: 'image' } } } })
   })
 
   it('rejects cross-site browser requests', async () => {
     const handler = createMediaApiHandler({ models: async () => ({}) })
-    const response = await invoke(handler, '/model-palette/api/media/models', {}, { 'sec-fetch-site': 'cross-site' })
+    const response = await invoke(handler, '/dsa-preset/api/media/models', {}, { 'sec-fetch-site': 'cross-site' })
     expect(response.status).toBe(403)
   })
 
   it('allows an acknowledged image attempt only through the direct media route', async () => {
-    const outputDir = mkdtempSync(join(tmpdir(), 'dsh-model-palette-'))
+    const outputDir = mkdtempSync(join(tmpdir(), 'dsa-preset-'))
     const tools = []
     const routes = []
     const ctx = {
@@ -158,7 +158,7 @@ describe('OpenRouter media registration', () => {
       expect(imageTool.parameters.properties).not.toHaveProperty('manual_paid_acknowledgement')
       await expect(imageTool.execute(args, { signal: new AbortController().signal })).rejects.toThrow('does not report a free image endpoint')
 
-      const response = await invoke(routes[0].handler, '/model-palette/api/media/images/generate', args)
+      const response = await invoke(routes[0].handler, '/dsa-preset/api/media/images/generate', args)
       expect(response.status).toBe(200)
       expect(response.body.value).toMatchObject({ model: 'paid-image', free_endpoint: false, manual_paid_override: true })
     } finally {
@@ -167,7 +167,7 @@ describe('OpenRouter media registration', () => {
   })
 
   it('allows an acknowledged video attempt only through the direct media route', async () => {
-    const outputDir = mkdtempSync(join(tmpdir(), 'dsh-model-palette-'))
+    const outputDir = mkdtempSync(join(tmpdir(), 'dsa-preset-'))
     const tools = []
     const routes = []
     const ctx = {
@@ -197,7 +197,7 @@ describe('OpenRouter media registration', () => {
       expect(videoTool.parameters.properties).not.toHaveProperty('manual_paid_acknowledgement')
       await expect(videoTool.execute(args, { signal: new AbortController().signal })).rejects.toThrow('does not report this video model as free')
 
-      const response = await invoke(routes[0].handler, '/model-palette/api/media/videos/generate', args)
+      const response = await invoke(routes[0].handler, '/dsa-preset/api/media/videos/generate', args)
       expect(response.status).toBe(200)
       expect(response.body.value).toMatchObject({ id: 'job-1', free_endpoint: false, manual_paid_override: true })
     } finally {

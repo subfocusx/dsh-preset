@@ -2,9 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { basename, dirname, relative, resolve as resolvePath } from 'node:path'
 import type { UserConfig } from 'tsdown'
 
-const PLUGIN_ID = 'dsh-model-palette'
+const PLUGIN_ID = 'dsa-preset'
 const CLIENT_EXTERNALS = ['react', 'react-dom', 'react/jsx-runtime']
-const CSS_PREFIX = '\0dsh-model-palette-css:'
+const CSS_PREFIX = '\0dsa-preset-css:'
 const CSS_SUFFIX = '.mjs'
 
 export default [
@@ -33,7 +33,7 @@ export default [
       'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),
     },
     plugins: [{
-      name: 'dsh-model-palette-css',
+      name: 'dsa-preset-css',
       resolveId(source: string, importer: string | undefined) {
         if (!source.endsWith('.css')) return null
         if (importer === undefined) throw new Error(`cannot resolve CSS ${source} without importer`)
@@ -66,6 +66,54 @@ export default [
       banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(PLUGIN_ID)}, factory: (require) => {`,
       footer: 'return module.exports; } });',
       intro: 'var module = { exports: {} }; var exports = module.exports;',
+    },
+  },
+  {
+    entry: { demo: 'src/client/demo.tsx' },
+    outDir: 'lib',
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2024',
+    dts: false,
+    clean: false,
+    external: [],
+    noExternal: () => true,
+    define: {
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'development'),
+      'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV ?? 'development'),
+      'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'development' }),
+    },
+    plugins: [{
+      name: 'dsa-preset-css',
+      resolveId(source: string, importer: string | undefined) {
+        if (!source.endsWith('.css')) return null
+        if (importer === undefined) throw new Error(`cannot resolve CSS ${source} without importer`)
+        const file = resolvePath(dirname(importer), source)
+        const stableId = relative(process.cwd(), file).replaceAll('\\', '/')
+        return CSS_PREFIX + stableId + CSS_SUFFIX
+      },
+      async load(id: string) {
+        if (!id.startsWith(CSS_PREFIX)) return null
+        const stableId = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length)
+        const file = resolvePath(process.cwd(), stableId)
+        this.addWatchFile(file)
+        const css = (await readFile(file, 'utf8')).replace(/\r\n?/gu, '\n')
+        const tagId = `${PLUGIN_ID}/${basename(file)}`
+        return [
+          `const css = ${JSON.stringify(css)};`,
+          `if (typeof document !== 'undefined' && document.querySelector(${JSON.stringify(`style[data-plugin-css="${tagId}"]`)}) === null) {`,
+          `  const tag = document.createElement('style');`,
+          `  tag.dataset.plugin = ${JSON.stringify(PLUGIN_ID)};`,
+          `  tag.dataset.pluginCss = ${JSON.stringify(tagId)};`,
+          `  tag.textContent = css;`,
+          `  document.head.appendChild(tag);`,
+          `}`,
+          `export default css;`,
+        ].join('\n')
+      },
+    }],
+    outputOptions: {
+      entryFileNames: 'demo.js',
     },
   },
 ] satisfies UserConfig[]

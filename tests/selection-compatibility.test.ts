@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   ensureSelectionCompatibility,
   ensureSelectionReasoning,
+  isSameSelection,
   mayNeedReasoningCompatibility,
 } from '../src/client/selection-compatibility.ts'
 
@@ -9,6 +10,29 @@ function namespace(profile: Record<string, unknown>, revision = 3) {
   const value = { providers: { bankofai: profile } }
   return { ns: 'llm-pi-ai', schema: {}, value, user: value, applies: 'live', secrets: [], revision }
 }
+
+describe('isSameSelection no-op guard', () => {
+  const live = { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'high' }
+  it('treats the identical selection as a no-op', () => {
+    expect(isSameSelection(live, { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'high' })).toBe(true)
+  })
+  it('treats missing and empty effort as equal', () => {
+    expect(isSameSelection(
+      { provider: 'deepseek', model: 'deepseek-chat' },
+      { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: '' },
+    )).toBe(true)
+  })
+  it('detects model, provider and effort changes', () => {
+    expect(isSameSelection(live, { provider: 'deepseek', model: 'deepseek-reasoner', reasoningEffort: 'high' })).toBe(false)
+    expect(isSameSelection(live, { provider: 'openai', model: 'deepseek-chat', reasoningEffort: 'high' })).toBe(false)
+    expect(isSameSelection(live, { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'low' })).toBe(false)
+    expect(isSameSelection(live, { provider: 'deepseek', model: 'deepseek-chat' })).toBe(false)
+  })
+  it('never treats a missing live selection as a no-op', () => {
+    expect(isSameSelection(null, { provider: 'deepseek', model: 'deepseek-chat' })).toBe(false)
+    expect(isSameSelection(undefined, { provider: 'deepseek', model: 'deepseek-chat' })).toBe(false)
+  })
+})
 
 describe('selection compatibility preflight', () => {
   it('limits automatic checks to known replay-required DeepSeek dialects', () => {

@@ -59,7 +59,7 @@ export const inject = [
 
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection')
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-model-palette: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsa-preset: dictionaries')
   ctx.inject(['slots', 'modelDirectories', 'sessions'], (scope) => {
     scope.slots.inject(
       'conversation.input.model',
@@ -67,7 +67,7 @@ export function apply(ctx: ClientContext): void {
         name: 'conversation.input.model',
         locale: NS,
         priority: -2,
-        registrant: 'dsh-model-palette',
+        registrant: 'dsa-preset',
         inject: (sessionId) => {
           const directory = scope.modelDirectories.directoryFor(sessionId)
           const available = scope.sessions.subagentAddress(sessionId) === undefined
@@ -76,7 +76,7 @@ export function apply(ctx: ClientContext): void {
             directory: directory.store,
             load: () => {
               if (available) directory.load().catch((error) => {
-                console.error('[dsh-model-palette] model directory load failed', error)
+                console.error('[dsa-preset] model directory load failed', error)
               })
             },
             select: async (selection: Selection) => {
@@ -84,7 +84,7 @@ export function apply(ctx: ClientContext): void {
               try {
                 return await directory.select(selection)
               } catch (error) {
-                console.error('[dsh-model-palette] model selection failed', error)
+                console.error('[dsa-preset] model selection failed', error)
                 return undefined
               }
             },
@@ -93,7 +93,7 @@ export function apply(ctx: ClientContext): void {
           }
         },
       }, ModelPalette),
-      'dsh-model-palette: composer model seat',
+      'dsa-preset: composer model seat',
     )
   })
 }

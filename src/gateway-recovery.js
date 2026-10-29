@@ -14,7 +14,7 @@ export function registerGatewayRecovery(ctx, config = {}, retrySettings) {
   ctx.effect(() => async () => {
     dispose()
     await handler.dispose()
-  }, 'dsh-model-palette: abort and drain gateway recovery')
+  }, 'dsa-preset: abort and drain gateway recovery')
 }
 
 /** Create the request-error listener separately so retry behavior remains unit-testable. */
@@ -41,13 +41,13 @@ export function createGatewayRecoveryHandler(ctx, config = {}, retrySettings = {
     if (retry >= maxRetries || payload.signal.aborted || lifetime.signal.aborted) {
       agentRetries.delete(key)
       relabelCloudflareFailure(payload.failure)
-      ctx.logger?.warn?.(`dsh-model-palette: provider "${payload.provider}" remained blocked by Cloudflare/WAF after ${retry} recovery attempts`)
+      ctx.logger?.warn?.(`dsa-preset: provider "${payload.provider}" remained blocked by Cloudflare/WAF after ${retry} recovery attempts`)
       return downstream
     }
 
     const delayMs = delaysMs[Math.min(retry, delaysMs.length - 1)]
     agentRetries.set(key, retry + 1)
-    ctx.logger?.warn?.(`dsh-model-palette: provider "${payload.provider}" hit Cloudflare/WAF; retrying in ${delayMs}ms (${retry + 1}/${maxRetries})`)
+    ctx.logger?.warn?.(`dsa-preset: provider "${payload.provider}" hit Cloudflare/WAF; retrying in ${delayMs}ms (${retry + 1}/${maxRetries})`)
     const pending = cancellableDelay(delayMs, AbortSignal.any([payload.signal, lifetime.signal]))
     active.add(pending)
     try {
@@ -69,14 +69,14 @@ export function createGatewayRecoveryHandler(ctx, config = {}, retrySettings = {
       agentRetries.delete(key)
       if (isCloudflareBlock(payload.failure)) relabelCloudflareFailure(payload.failure)
       if (retry > 0) {
-        ctx.logger?.warn?.(`dsh-model-palette: ${rule.source} retry limit reached for "${payload.provider}/${model || '?'}" after ${retry} attempts`)
+        ctx.logger?.warn?.(`dsa-preset: ${rule.source} retry limit reached for "${payload.provider}/${model || '?'}" after ${retry} attempts`)
       }
       return undefined
     }
 
     const delayMs = resolveRetryDelay(payload.failure, delaysMs, retry)
     agentRetries.set(key, retry + 1)
-    ctx.logger?.warn?.(`dsh-model-palette: transient request failure for "${payload.provider}/${model || '?'}"; retrying in ${delayMs}ms (${retry + 1}/${rule.maxRetries}, ${rule.source} rule)`)
+    ctx.logger?.warn?.(`dsa-preset: transient request failure for "${payload.provider}/${model || '?'}"; retrying in ${delayMs}ms (${retry + 1}/${rule.maxRetries}, ${rule.source} rule)`)
     const pending = cancellableDelay(delayMs, AbortSignal.any([payload.signal, lifetime.signal]))
     active.add(pending)
     try {
@@ -90,7 +90,7 @@ export function createGatewayRecoveryHandler(ctx, config = {}, retrySettings = {
   return {
     recover,
     async dispose() {
-      lifetime.abort(new Error('dsh-model-palette gateway recovery disposed'))
+      lifetime.abort(new Error('dsa-preset gateway recovery disposed'))
       await Promise.allSettled([...active])
     },
   }
@@ -123,7 +123,7 @@ function relabelCloudflareFailure(failure) {
 function resolveDelays(value) {
   if (value === undefined) return DEFAULT_DELAYS_MS
   if (!Array.isArray(value) || value.length === 0 || value.some(delay => !Number.isInteger(delay) || delay < 0 || delay > 60_000)) {
-    throw new Error('dsh-model-palette: gatewayRecovery.delaysMs must be a non-empty array of integers from 0 to 60000')
+    throw new Error('dsa-preset: gatewayRecovery.delaysMs must be a non-empty array of integers from 0 to 60000')
   }
   return [...value]
 }
@@ -131,7 +131,7 @@ function resolveDelays(value) {
 function resolveMaxRetries(value, availableDelays) {
   if (value === undefined) return availableDelays
   if (!Number.isInteger(value) || value < 0 || value > 10) {
-    throw new Error('dsh-model-palette: gatewayRecovery.maxRetries must be an integer from 0 to 10')
+    throw new Error('dsa-preset: gatewayRecovery.maxRetries must be an integer from 0 to 10')
   }
   return value
 }

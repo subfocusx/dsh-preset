@@ -1,6 +1,6 @@
 import z from '@deepseek-ai/schemastery'
 
-export const REQUEST_RETRY_SETTINGS_NAMESPACE = 'dsh-model-palette'
+export const REQUEST_RETRY_SETTINGS_NAMESPACE = 'dsa-preset'
 export const MAX_CONFIGURED_RETRIES = 1_000
 
 const PRESET_PROVIDERS = ['b.ai', 'bai', 'bailsb', 'baiwhr', 'bankofai']

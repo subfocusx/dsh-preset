@@ -6,7 +6,7 @@ import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 import { hasManualPaidAcknowledgement } from './media-protocol.ts'
 
 const API_BASE = 'https://openrouter.ai/api/v1'
-const MEDIA_API_PATH = '/model-palette/api/media'
+const MEDIA_API_PATH = '/dsa-preset/api/media'
 const REQUEST_TIMEOUT_MS = 180_000
 const DOWNLOAD_TIMEOUT_MS = 600_000
 const REQUEST_BODY_LIMIT = 1_048_576
@@ -31,11 +31,11 @@ export function registerOpenRouterMedia(ctx, rawConfig) {
     status: videoStatusTool(ctx, config),
     download: videoDownloadTool(ctx, config),
   }
-  ctx.effect(() => ctx.tools.register(tools.models), 'dsh-model-palette: OpenRouter media catalog tool')
-  ctx.effect(() => ctx.tools.register(tools.image), 'dsh-model-palette: OpenRouter image tool')
-  ctx.effect(() => ctx.tools.register(tools.video), 'dsh-model-palette: OpenRouter video submit tool')
-  ctx.effect(() => ctx.tools.register(tools.status), 'dsh-model-palette: OpenRouter video status tool')
-  ctx.effect(() => ctx.tools.register(tools.download), 'dsh-model-palette: OpenRouter video download tool')
+  ctx.effect(() => ctx.tools.register(tools.models), 'dsa-preset: OpenRouter media catalog tool')
+  ctx.effect(() => ctx.tools.register(tools.image), 'dsa-preset: OpenRouter image tool')
+  ctx.effect(() => ctx.tools.register(tools.video), 'dsa-preset: OpenRouter video submit tool')
+  ctx.effect(() => ctx.tools.register(tools.status), 'dsa-preset: OpenRouter video status tool')
+  ctx.effect(() => ctx.tools.register(tools.download), 'dsa-preset: OpenRouter video download tool')
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: MEDIA_API_PATH,
@@ -46,7 +46,7 @@ export function registerOpenRouterMedia(ctx, rawConfig) {
       status: (args, signal) => tools.status.execute(args, { signal }),
       download: (args, signal) => tools.download.execute(args, { signal }),
     }),
-  }), 'dsh-model-palette: direct media API')
+  }), 'dsa-preset: direct media API')
 }
 
 export function createMediaApiHandler(actions) {
@@ -402,7 +402,7 @@ async function apiFetch(ctx, config, path, options = {}) {
   const headers = new Headers(options.headers)
   headers.set('Authorization', `Bearer ${resolved.value}`)
   headers.set('Accept', 'application/json')
-  headers.set('X-Title', 'DSH Model Palette OpenRouter Media')
+  headers.set('X-Title', 'DSA Preset OpenRouter Media')
   const body = options.body === undefined ? undefined : JSON.stringify(options.body)
   if (body !== undefined) headers.set('Content-Type', 'application/json')
   const timeout = AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)

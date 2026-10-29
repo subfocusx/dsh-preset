@@ -15,7 +15,7 @@ export function createSettingsBackend(ctx) {
     return { mode: 'native', register: (ns, schema, opts) => settings.register(ns, schema, opts) }
   }
 
-  const ownNs = ctx.fiber?.entry?.options?.id ?? 'dsh-model-palette'
+  const ownNs = ctx.fiber?.entry?.options?.id ?? 'dsa-preset'
 
   function findEntry(ns) {
     if (typeof settings.describe !== 'function') return undefined

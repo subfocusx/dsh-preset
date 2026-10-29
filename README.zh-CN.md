@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="assets/icon.svg" width="96" height="96" alt="DSH Model Palette" />
-  <h1>dsh-model-palette</h1>
+  <img src="assets/icon.svg" width="96" height="96" alt="DSA Preset" />
+  <h1>dsa-preset</h1>
   <p>
     <strong>DeepSeek Harness Web 的全局供应商感知模型命令面板</strong>
   </p>
@@ -17,7 +17,7 @@
 
 ---
 
-**dsh-model-palette** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的一款插件，用强大的全局命令面板取代原生模型选择器。在 Web 界面的任意位置按下 **Alt+M**，或点击输入框的模型触发器，即可跨所有供应商即时搜索、筛选、收藏和切换模型。
+**dsa-preset** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的一款插件，用强大的全局命令面板取代原生模型选择器。在 Web 界面的任意位置按下 **Alt+M**，或点击输入框的模型触发器，即可跨所有供应商即时搜索、筛选、收藏和切换模型。
 
 项目展示页：[jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
@@ -151,7 +151,7 @@ dsh plugin --profile web add github:Jensen-Yao/dsh-model-palette#v0.12.0
 
 ```yaml
 # cordis.patch.yml 或你的 profile 补丁文件
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     openrouterMedia:
       enabled: false                # 设为 false 关闭媒体工具
@@ -177,13 +177,13 @@ llm-pi-ai:
     bailsb:
       apiKeyEnv: BAILSB_API_KEY
       api: openai-responses
-      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      baseURL: http://127.0.0.1:3080/dsa-preset/api/bai-relay/v1
       models:
         - id: deepseek-v4-flash
     baiwhr:
       apiKeyEnv: BAIWHR_API_KEY
       api: openai-responses
-      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      baseURL: http://127.0.0.1:3080/dsa-preset/api/bai-relay/v1
       models:
         - id: deepseek-v4-flash
 ```
@@ -193,7 +193,7 @@ llm-pi-ai:
 内置中继的重试参数属于插件配置，不属于 provider 配置：
 
 ```yaml
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     baiRelay:
       upstreamRetries: 2
@@ -227,7 +227,7 @@ llm-pi-ai:
 遇到其他「key 有效但官方域名在本机无法访问」的供应商时，可在插件配置中声明具名固定目标中继。每个中继都有独立 ID、固定 HTTPS 连接主机、原 API Host、TLS SNI、证书校验名称和允许路径；插件不会接受浏览器动态指定目标。
 
 ```yaml
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     providerRelays:
       example-provider:
@@ -242,7 +242,7 @@ llm-pi-ai:
         retryBodyLimitBytes: 16777216
 ```
 
-重启 `dsh web` 后，把对应 provider 的 Base URL 改为 `http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1`。如果 DSH 不是运行在 `3080` 端口，以「中继配置」页显示的当前回环地址为准。只应配置经过核验、确实连接到同一供应商 API 的替代入口；不要把未知网站、密钥或动态 URL 写入中继配置。
+重启 `dsh web` 后，把对应 provider 的 Base URL 改为 `http://127.0.0.1:3080/dsa-preset/api/relay/example-provider/v1`。如果 DSH 不是运行在 `3080` 端口，以「中继配置」页显示的当前回环地址为准。只应配置经过核验、确实连接到同一供应商 API 的替代入口；不要把未知网站、密钥或动态 URL 写入中继配置。
 
 注册的五个 Agent 工具：
 
@@ -297,7 +297,7 @@ llm-pi-ai:
 
 API key 验证会明确区分“可用”“无效”“被供应商或网关拒绝”“暂不可用”“未配置”和“无法判断”。插件不会把公开 `/models` 成功当成 key 可用于对话的证明，而是使用与 DSH 对话一致的最小流式请求；“一键检查全部 API key”会依次测试运行时凭据以降低限流压力，并显示供应商、credential ref、来源、协议、模型与诊断。DSH 当前运行时凭据与输入框中不同的待保存 key 会分开验证，且 key 始终只在插件后端使用。每次请求可能产生少量费用。
 
-选择性重试规则保存在插件自己的 `dsh-model-palette` settings 命名空间并实时生效。供应商规则只接管该线路，精确模型覆盖优先于供应商规则。B.AI / BankOfAI 常见 ID（`b.ai`、`bai`、`bailsb`、`baiwhr`、`bankofai`）默认预置 50 次。`N` 表示第一次失败后的重试次数，因此 `50` 最多可能产生 `51` 次可计费请求。只有网络错误、超时、限流、服务器错误、空响应和明确的 Cloudflare/WAF 403 会重试；无效凭据、余额或配额耗尽、请求参数错误、模型不存在和上下文超限会直接结束。模型覆盖设为 `0` 时会明确禁止该模型恢复；没有插件规则的线路继续走 DSH 原有恢复链路。这套供应商/模型重试与中继自身的传输恢复是两层机制：中继先处理建立连接阶段的 socket 错误，DSH 收到请求失败后才使用这里的规则。
+选择性重试规则保存在插件自己的 `dsa-preset` settings 命名空间并实时生效。供应商规则只接管该线路，精确模型覆盖优先于供应商规则。B.AI / BankOfAI 常见 ID（`b.ai`、`bai`、`bailsb`、`baiwhr`、`bankofai`）默认预置 50 次。`N` 表示第一次失败后的重试次数，因此 `50` 最多可能产生 `51` 次可计费请求。只有网络错误、超时、限流、服务器错误、空响应和明确的 Cloudflare/WAF 403 会重试；无效凭据、余额或配额耗尽、请求参数错误、模型不存在和上下文超限会直接结束。模型覆盖设为 `0` 时会明确禁止该模型恢复；没有插件规则的线路继续走 DSH 原有恢复链路。这套供应商/模型重试与中继自身的传输恢复是两层机制：中继先处理建立连接阶段的 socket 错误，DSH 收到请求失败后才使用这里的规则。
 
 明确的 Cloudflare/WAF 403 用尽重试次数后，会把错误改标为“供应商网关拦截”，避免 DSH 因上游将 403 归类为 `AUTH` 而显示 `API key is invalid`。重试不能绕过永久 WAF 规则；请求内容、体积、频率、账户策略或网关本身仍可能需要调整。
 
@@ -322,7 +322,7 @@ OpenRouter 免费模型检查使用公开 `/api/v1/models` 目录，只接收带
 ```sh
 # 克隆仓库
 git clone https://github.com/Jensen-Yao/dsh-model-palette.git
-cd dsh-model-palette
+cd dsa-preset
 
 # 安装依赖
 pnpm install
@@ -342,7 +342,7 @@ pnpm test
 ### 项目结构
 
 ```
-dsh-model-palette/
+dsa-preset/
 ├── src/
 │   ├── client/              # 前端 React 组件
 │   │   ├── index.tsx        # 客户端入口与插槽注册

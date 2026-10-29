@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="assets/icon.svg" width="96" height="96" alt="DSH Model Palette" />
-  <h1>dsh-model-palette</h1>
+  <img src="assets/icon.svg" width="96" height="96" alt="DSA Preset" />
+  <h1>dsa-preset</h1>
   <p>
     <strong>Global provider-aware model command palette for DeepSeek Harness Web</strong>
   </p>
@@ -17,7 +17,7 @@
 
 ---
 
-**dsh-model-palette** is a plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that replaces the native model selector with a powerful, global command palette. Press **Alt+M** from anywhere in the Web UI — or click the composer trigger — and instantly search, filter, favorite, and switch models across all your providers.
+**dsa-preset** is a plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that replaces the native model selector with a powerful, global command palette. Press **Alt+M** from anywhere in the Web UI — or click the composer trigger — and instantly search, filter, favorite, and switch models across all your providers.
 
 Project site: [jensen-yao.github.io/dsh-model-palette](https://jensen-yao.github.io/dsh-model-palette/)
 
@@ -151,7 +151,7 @@ Opt out or customize via a profile patch — every field is optional:
 
 ```yaml
 # cordis.patch.yml or your profile patch file
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     openrouterMedia:
       enabled: false                # set false to turn the tools off
@@ -187,13 +187,13 @@ llm-pi-ai:
     bailsb:
       apiKeyEnv: BAILSB_API_KEY
       api: openai-responses
-      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      baseURL: http://127.0.0.1:3080/dsa-preset/api/bai-relay/v1
       models:
         - id: deepseek-v4-flash
     baiwhr:
       apiKeyEnv: BAIWHR_API_KEY
       api: openai-responses
-      baseURL: http://127.0.0.1:3080/model-palette/api/bai-relay/v1
+      baseURL: http://127.0.0.1:3080/dsa-preset/api/bai-relay/v1
       models:
         - id: deepseek-v4-flash
 ```
@@ -203,7 +203,7 @@ The relay accepts only direct `127.0.0.1` / `::1` requests and has a fixed B.AI 
 The built-in relay retry settings belong to the plugin config, not the provider profile:
 
 ```yaml
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     baiRelay:
       upstreamRetries: 2
@@ -237,7 +237,7 @@ The built-in relay retry settings belong to the plugin config, not the provider 
 For another provider whose key works but canonical domain is unreachable locally, declare a named fixed-destination relay in plugin configuration. Each relay has an ID, fixed HTTPS connection host, original API Host, TLS SNI, certificate validation name, and allowed path prefix. Browser requests cannot choose an upstream dynamically.
 
 ```yaml
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     providerRelays:
       example-provider:
@@ -252,7 +252,7 @@ For another provider whose key works but canonical domain is unreachable locally
         retryBodyLimitBytes: 16777216
 ```
 
-After restarting `dsh web`, set the provider Base URL to `http://127.0.0.1:3080/model-palette/api/relay/example-provider/v1`. If DSH uses another port, copy the current loopback address from Relay config. Configure only a verified alternate entry for the same provider API; never place an unknown site, secret, or dynamic URL in relay configuration.
+After restarting `dsh web`, set the provider Base URL to `http://127.0.0.1:3080/dsa-preset/api/relay/example-provider/v1`. If DSH uses another port, copy the current loopback address from Relay config. Configure only a verified alternate entry for the same provider API; never place an unknown site, secret, or dynamic URL in relay configuration.
 
 ## 🎮 Using the Palette
 
@@ -297,7 +297,7 @@ Press **<kbd>Alt+M</kbd>** and select **Model config** in the left rail to:
 
 API key validation reports whether the credential is usable, invalid, blocked, unavailable, missing, or inconclusive. It never treats a public `/models` response as proof that a key can run conversations and uses the same streaming mode as DSH conversations. **Check all API keys** runs real requests sequentially to reduce rate-limit pressure and shows the provider, credential reference, source, protocol, model, and diagnostic. The active DSH runtime credential is tested separately from a different unsaved input key, and all keys stay on the plugin backend. Each request may incur a small charge.
 
-Selective request retry rules live in the plugin's `dsh-model-palette` settings namespace and apply live. A provider rule owns recovery only for that route; an exact model override wins over it. B.AI/BankOfAI aliases (`b.ai`, `bai`, `bailsb`, `baiwhr`, and `bankofai`) default to 50 retries. `N` means retries after the first failed request, so `50` can produce at most `51` billable attempts. Only transport errors, timeouts, rate limits, server errors, empty responses, and explicit Cloudflare/WAF 403 pages retry. Invalid credentials, quota exhaustion, malformed requests, missing models, and context overflow remain terminal. Setting a model override to `0` explicitly disables recovery for that model; routes without plugin rules continue through the normal DSH recovery chain. These provider/model rules are separate from the relay's own transport recovery: the relay handles socket setup failures before DSH receives a response, while this namespace handles failures reported by the DSH request path.
+Selective request retry rules live in the plugin's `dsa-preset` settings namespace and apply live. A provider rule owns recovery only for that route; an exact model override wins over it. B.AI/BankOfAI aliases (`b.ai`, `bai`, `bailsb`, `baiwhr`, and `bankofai`) default to 50 retries. `N` means retries after the first failed request, so `50` can produce at most `51` billable attempts. Only transport errors, timeouts, rate limits, server errors, empty responses, and explicit Cloudflare/WAF 403 pages retry. Invalid credentials, quota exhaustion, malformed requests, missing models, and context overflow remain terminal. Setting a model override to `0` explicitly disables recovery for that model; routes without plugin rules continue through the normal DSH recovery chain. These provider/model rules are separate from the relay's own transport recovery: the relay handles socket setup failures before DSH receives a response, while this namespace handles failures reported by the DSH request path.
 
 If an explicit Cloudflare/WAF 403 keeps failing after its retry budget, the failure is relabeled as a provider block so the conversation does not misleadingly report `API key is invalid`. Retries cannot bypass a permanent WAF rule; request content, size, frequency, account policy, or the gateway itself may still need correction.
 
@@ -322,7 +322,7 @@ Press **<kbd>Alt+M</kbd>** and select **Media tools** in the left rail:
 ```sh
 # Clone the repository
 git clone https://github.com/Jensen-Yao/dsh-model-palette.git
-cd dsh-model-palette
+cd dsa-preset
 
 # Install dependencies
 pnpm install
@@ -342,7 +342,7 @@ Prebuilt `lib/` files are committed to the repository so GitHub-based installs d
 ### Project Structure
 
 ```
-dsh-model-palette/
+dsa-preset/
 ├── src/
 │   ├── client/              # Frontend React components
 │   │   ├── index.tsx        # Client entry point & slot registration

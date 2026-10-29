@@ -174,7 +174,7 @@ export function ProviderIcon({ id, size = 20, colored = false }: ProviderIconPro
       style={color === undefined ? undefined : { color }}
       aria-hidden="true"
       focusable="false"
-      className="dmp-provider-icon"
+      className="dsa-provider-icon"
     >
       {glyph}
     </svg>

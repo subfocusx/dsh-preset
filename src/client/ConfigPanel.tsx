@@ -83,7 +83,7 @@ interface ConfigPanelProps {
 }
 
 const SETTINGS_NAMESPACE = 'llm-pi-ai'
-const RETRY_SETTINGS_NAMESPACE = 'dsh-model-palette'
+const RETRY_SETTINGS_NAMESPACE = 'dsa-preset'
 const MAX_REQUEST_RETRIES = 1_000
 const PROTOCOL_SCAN_BATCH_SIZE = 100
 const PROTOCOLS = ['openai-completions', 'openai-responses', 'anthropic-messages'] as const
@@ -718,7 +718,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
     void enrichCatalogModels(providerId, current).then((resolved) => {
       setLiveCatalogModels(catalog => ({ ...catalog, [providerId]: resolved }))
     }).catch((cause) => {
-      console.error('[dsh-model-palette] catalog metadata resolution failed', cause)
+      console.error('[dsa-preset] catalog metadata resolution failed', cause)
     })
   }, [creating, enrichCatalogModels, explicitModels.length, providerId])
 
@@ -1534,19 +1534,19 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
   // the model-config card only manages already-configured routes.
   if (mode === 'catalog') {
     return (
-      <main className="dmp-config dmp-config-catalog">
-        <section className="dmp-config-toolbar">
+      <main className="dsa-config dsa-config-catalog">
+        <section className="dsa-config-toolbar">
           <div>
             <strong>{t('config.templateTitle')}</strong>
             <span>{t('config.templateHint')}</span>
           </div>
-          <div className="dmp-config-toolbar-actions">
+          <div className="dsa-config-toolbar-actions">
             <button type="button" onClick={() => onSwitchMode?.('config')}>{t('config.backToConfig')}</button>
           </div>
         </section>
-        {error !== null && <div className="dmp-media-error" role="alert">{error}</div>}
-        {feedback !== null && <div className="dmp-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
-        <div className="dmp-config-template-toolbar">
+        {error !== null && <div className="dsa-media-error" role="alert">{error}</div>}
+        {feedback !== null && <div className="dsa-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
+        <div className="dsa-config-template-toolbar">
           <input
             autoFocus
             value={templateQuery}
@@ -1560,20 +1560,20 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           { key: 'subscription', label: t('config.templateSubscription'), templates: filterTemplates(SUBSCRIPTION_TEMPLATES, templateQuery), blank: false },
           { key: 'catalog', label: t('config.templateCatalog'), templates: filterTemplates(CATALOG_TEMPLATES, templateQuery), blank: false },
         ].map(group => (
-          <div className="dmp-config-template-group" key={group.key}>
+          <div className="dsa-config-template-group" key={group.key}>
             <h4>{group.label}</h4>
-            <div className="dmp-config-template-grid">
+            <div className="dsa-config-template-grid">
               {group.templates.map(template => (
                 <button
                   key={template.id}
                   type="button"
-                  className="dmp-config-provider-card"
+                  className="dsa-config-provider-card"
                   disabled={busy !== null}
                   onClick={() => startCreateFromTemplate(template)}
                   title={`${template.displayName}${template.hint === undefined ? '' : ` · ${template.hint}`}`}
                 >
-                  <span className="dmp-config-provider-card-icon" style={tileStyle(template.icon)}><ProviderIcon id={template.icon} size={22} colored /></span>
-                  <span className="dmp-config-provider-card-main">
+                  <span className="dsa-config-provider-card-icon" style={tileStyle(template.icon)}><ProviderIcon id={template.icon} size={22} colored /></span>
+                  <span className="dsa-config-provider-card-main">
                     <strong>{template.displayName}</strong>
                     <small>{(() => {
                       const liveCount = template.catalog === true ? liveCatalogModels[template.id]?.length : undefined
@@ -1586,15 +1586,15 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                 </button>
               ))}
               {group.blank && templateQuery.trim() === '' && (
-                <button type="button" className="dmp-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
-                  <span className="dmp-config-provider-card-icon">＋</span>
-                  <span className="dmp-config-provider-card-main">
+                <button type="button" className="dsa-config-provider-card is-blank" disabled={busy !== null} onClick={startCreate}>
+                  <span className="dsa-config-provider-card-icon">＋</span>
+                  <span className="dsa-config-provider-card-main">
                     <strong>{t('config.templateBlank')}</strong>
                     <small>{t('config.templateBlankHint')}</small>
                   </span>
                 </button>
               )}
-              {group.templates.length === 0 && !group.blank && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+              {group.templates.length === 0 && !group.blank && <div className="dsa-config-empty">{t('config.providerSearchEmpty')}</div>}
             </div>
           </div>
         ))}
@@ -1603,32 +1603,32 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
   }
 
   return (
-    <main className="dmp-config">
-      <section className="dmp-config-toolbar">
+    <main className="dsa-config">
+      <section className="dsa-config-toolbar">
         <div>
           <strong>{t('config.title')}</strong>
           <span>{t('config.intro')}</span>
         </div>
-        <div className="dmp-config-toolbar-actions">
-          {dirty && <span className="dmp-config-dirty">{t('config.unsaved')}</span>}
+        <div className="dsa-config-toolbar-actions">
+          {dirty && <span className="dsa-config-dirty">{t('config.unsaved')}</span>}
           <button type="button" disabled={busy !== null || providerIds.length === 0} onClick={() => void validateAllApiKeys()}>{busy === 'api-key-batch' ? t('config.apiKeyBatchRunning') : t('config.apiKeyBatch')}</button>
           <button type="button" disabled={busy !== null} onClick={() => void load()}>{t('config.reload')}</button>
           <button type="button" disabled={busy !== null} onClick={() => onSwitchMode?.('catalog')}>{t('config.addProvider')}</button>
         </div>
       </section>
 
-      {error !== null && <div className="dmp-media-error" role="alert">{error}</div>}
-      {feedback !== null && <div className="dmp-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
+      {error !== null && <div className="dsa-media-error" role="alert">{error}</div>}
+      {feedback !== null && <div className="dsa-media-feedback" aria-live="polite"><strong>{t('config.done')}</strong><span>{feedback}</span></div>}
       {batchApiKeyValidation !== null && (
-        <section className="dmp-config-batch-results" aria-label={t('config.apiKeyBatchResults')}>
-          <div className="dmp-config-batch-heading">
+        <section className="dsa-config-batch-results" aria-label={t('config.apiKeyBatchResults')}>
+          <div className="dsa-config-batch-heading">
             <div>
               <strong>{t('config.apiKeyBatchResults')}</strong>
               <span>{batchProblemCount === 0 ? t('config.apiKeyBatchAllValid') : t('config.apiKeyBatchProblems', { count: batchProblemCount })}</span>
             </div>
             <button type="button" disabled={busy !== null} onClick={() => setBatchApiKeyValidation(null)}>{t('config.apiKeyBatchClose')}</button>
           </div>
-          <div className="dmp-config-batch-list">
+          <div className="dsa-config-batch-list">
             {batchApiKeyValidation.map(result => (
               <article className={`is-${result.status}`} key={result.provider}>
                 <div>
@@ -1647,7 +1647,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
         </section>
       )}
       {compatibilityRepair.changed && (
-        <div className="dmp-config-compat-warning" role="status">
+        <div className="dsa-config-compat-warning" role="status">
           <div>
             <strong>{t('config.reasoningRepairTitle')}</strong>
             <span>{t('config.reasoningRepairDescription', {
@@ -1662,28 +1662,28 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       )}
 
       {providerIds.length === 0 && !creating && (
-        <section className="dmp-config-welcome">
+        <section className="dsa-config-welcome">
           <strong>{t('config.emptyTitle')}</strong>
           <span>{t('config.emptyHint')}</span>
-          <button type="button" className="dmp-media-primary" disabled={busy !== null} onClick={() => onSwitchMode?.('catalog')}>{t('config.addProvider')}</button>
+          <button type="button" className="dsa-media-primary" disabled={busy !== null} onClick={() => onSwitchMode?.('catalog')}>{t('config.addProvider')}</button>
         </section>
       )}
 
       {!(providerIds.length === 0 && !creating) && (
-      <section className="dmp-config-card">
-        <div className="dmp-config-card-heading">
+      <section className="dsa-config-card">
+        <div className="dsa-config-card-heading">
           <div><h3>{t('config.providerTitle')}</h3><p>{t('config.providerDescription')}</p></div>
-          <div className="dmp-config-provider-actions">
+          <div className="dsa-config-provider-actions">
             {!creating && providerIds.length > 0 && <>
               <button type="button" disabled={busy !== null} onClick={duplicateProvider}>{t('config.duplicateProvider')}</button>
-              <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => void deleteProvider()}>{busy === 'delete' ? t('config.deleting') : t('config.deleteProvider')}</button>
+              <button type="button" className="dsa-danger" disabled={busy !== null} onClick={() => void deleteProvider()}>{busy === 'delete' ? t('config.deleting') : t('config.deleteProvider')}</button>
             </>}
             {creating && providerIds.length > 0 && <button type="button" disabled={busy !== null} onClick={cancelCreate}>{t('config.cancelCreate')}</button>}
           </div>
         </div>
 
-        <div className="dmp-config-provider-browser">
-            <div className="dmp-config-provider-browser-bar">
+        <div className="dsa-config-provider-browser">
+            <div className="dsa-config-provider-browser-bar">
               <input
                 value={providerQuery}
                 onChange={event => setProviderQuery(event.currentTarget.value)}
@@ -1692,35 +1692,35 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               />
               <span>{t('config.providerCount', { count: providerIds.length })}</span>
             </div>
-            <div className="dmp-config-provider-cards">
+            <div className="dsa-config-provider-cards">
               {filteredProviderCards.map(card => (
                 <button
                   key={card.id}
                   type="button"
-                  className={`dmp-config-provider-card${card.active ? ' is-active' : ''}`}
+                  className={`dsa-config-provider-card${card.active ? ' is-active' : ''}`}
                   disabled={busy !== null}
                   onClick={() => selectProvider(card.id)}
                   title={`${card.displayName} · ${card.id}`}
                 >
-                  <span className="dmp-config-provider-card-icon" style={tileStyle(card.icon)}><ProviderIcon id={card.icon} size={22} colored /></span>
-                  <span className="dmp-config-provider-card-main">
+                  <span className="dsa-config-provider-card-icon" style={tileStyle(card.icon)}><ProviderIcon id={card.icon} size={22} colored /></span>
+                  <span className="dsa-config-provider-card-main">
                     <strong>{card.displayName}</strong>
                     <small>{t('config.providerCardMeta', { count: card.modelCount, protocol: card.protocol || '—' })}</small>
                   </span>
-                  {card.freeSync && <em className="dmp-config-provider-card-free">{t('config.freeBadge')}</em>}
-                  <i className={`dmp-key-dot is-${card.keyDot}`} title={t(card.keyDot === 'configured' ? 'config.keyDotConfigured' : card.keyDot === 'missing' ? 'config.keyDotMissing' : 'config.keyDotNone')} aria-hidden="true" />
+                  {card.freeSync && <em className="dsa-config-provider-card-free">{t('config.freeBadge')}</em>}
+                  <i className={`dsa-key-dot is-${card.keyDot}`} title={t(card.keyDot === 'configured' ? 'config.keyDotConfigured' : card.keyDot === 'missing' ? 'config.keyDotMissing' : 'config.keyDotNone')} aria-hidden="true" />
                 </button>
               ))}
-              {filteredProviderCards.length === 0 && providerIds.length > 0 && <div className="dmp-config-empty">{t('config.providerSearchEmpty')}</div>}
+              {filteredProviderCards.length === 0 && providerIds.length > 0 && <div className="dsa-config-empty">{t('config.providerSearchEmpty')}</div>}
               <button
                 type="button"
-                className="dmp-config-provider-card is-add"
+                className="dsa-config-provider-card is-add"
                 disabled={busy !== null}
                 onClick={() => { onSwitchMode?.('catalog'); setTemplateQuery('') }}
                 title={t('config.templateHint')}
               >
-                <span className="dmp-config-provider-card-icon">＋</span>
-                <span className="dmp-config-provider-card-main">
+                <span className="dsa-config-provider-card-icon">＋</span>
+                <span className="dsa-config-provider-card-main">
                   <strong>{t('config.addProvider')}</strong>
                   <small>{t('config.templateSubtitle')}</small>
                 </span>
@@ -1728,27 +1728,27 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
             </div>
           </div>
 
-        <div className="dmp-config-provider-grid">
-          <label className="dmp-media-field">
+        <div className="dsa-config-provider-grid">
+          <label className="dsa-media-field">
             <span>{t('config.providerId')}</span>
             <input value={providerId} disabled={!creating || busy !== null} onChange={event => { setProviderId(event.currentTarget.value.toLocaleLowerCase()); setProtocolResults(null); setModelProtocolResults(null); setApiKeyValidation(null) }} placeholder="my-provider" />
           </label>
-          <label className="dmp-media-field">
+          <label className="dsa-media-field">
             <span>{t('config.displayName')}</span>
             <input value={stringField(draft, 'displayName')} disabled={readOnly} onChange={event => updateProfileString('displayName', event.currentTarget.value)} placeholder={providerId || 'My Provider'} />
           </label>
-          <label className="dmp-media-field dmp-config-span-2">
+          <label className="dsa-media-field dsa-config-span-2">
             <span>{t('config.baseUrl')}</span>
             <input value={stringField(draft, 'baseURL')} disabled={readOnly} onChange={event => updateProfileString('baseURL', event.currentTarget.value)} placeholder="https://api.example.com/v1" />
           </label>
-          <label className="dmp-media-field">
+          <label className="dsa-media-field">
             <span>{t('config.protocol')}</span>
             <select value={protocol} disabled={readOnly} onChange={event => updateProfileString('api', event.currentTarget.value)}>
               {PROTOCOLS.map(value => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
-          <div className="dmp-config-protocol-note">{t('config.protocolNote')}</div>
-          <label className="dmp-media-field">
+          <div className="dsa-config-protocol-note">{t('config.protocolNote')}</div>
+          <label className="dsa-media-field">
             <span>{t('config.providerDefaultInput')}</span>
             <select value={inputMode(draft, 'defaultInput')} disabled={readOnly} onChange={event => setDraft(current => setInputMode(current, event.currentTarget.value as ReturnType<typeof inputMode>, 'defaultInput'))}>
               <option value="inherit">{t('config.inputDshDefault')}</option>
@@ -1757,13 +1757,13 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               <option value="image">{t('config.inputImageOnly')}</option>
             </select>
           </label>
-          <label className="dmp-media-field">
+          <label className="dsa-media-field">
             <span>{t('config.credentialRef')}</span>
             <input value={credentialRef} disabled={readOnly} onChange={event => updateProfileString('apiKeyEnv', event.currentTarget.value)} placeholder={deriveCredentialRef(providerId || 'provider')} />
           </label>
-          <label className="dmp-media-field dmp-config-key-field">
+          <label className="dsa-media-field dsa-config-key-field">
             <span>{t('config.apiKey')}</span>
-            <span className="dmp-config-key-input">
+            <span className="dsa-config-key-input">
               <input
                 type={keyVisible ? 'text' : 'password'}
                 value={keyDraft}
@@ -1778,12 +1778,12 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           </label>
         </div>
 
-        <div className="dmp-config-status-row">
+        <div className="dsa-config-status-row">
           <span className={credential?.configured ? 'is-ok' : ''}>
             {credential?.configured ? t('config.credentialStatusConfigured', { source: credential.source ?? '?' }) : t('config.credentialStatusMissing')}
           </span>
           <span>{isLoopback ? t('config.revealLocalReady') : t('config.revealLoopbackOnly')}</span>
-          <label className="dmp-config-protocol-model">
+          <label className="dsa-config-protocol-model">
             <span>{t('config.protocolProbeModel')}</span>
             <select value={protocolTestModelValue} disabled={busy !== null || protocolTestModel === undefined} onChange={event => chooseProtocolTestModel(event.currentTarget.value)}>
               {models.filter(model => typeof model.id === 'string' && model.id.trim() !== '').map(model => <option key={model.id as string} value={model.id as string}>{model.id as string}</option>)}
@@ -1796,12 +1796,12 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
             <button type="button" disabled={busy !== null || !hasApiKey} onClick={() => void validateApiKey()}>{busy === 'api-key-validation' ? t('config.apiKeyValidating') : t('config.validateApiKey')}</button>
             <button type="button" disabled={busy !== null || protocolTestModel === undefined} onClick={() => void probeProtocols()}>{busy === 'protocol-probe' ? t('config.protocolProbing') : t('config.protocolProbe')}</button>
             <button type="button" disabled={busy !== null || models.length === 0 || !hasApiKey} onClick={() => void probeAllModelProtocols()}>{busy === 'protocol-scan' ? t('config.protocolScanning') : t('config.protocolScan')}</button>
-            <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
+            <button className="dsa-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
         {openRouterFreeCatalog !== null && (
-          <section className="dmp-config-free-picker">
-            <div className="dmp-config-free-picker-heading">
+          <section className="dsa-config-free-picker">
+            <div className="dsa-config-free-picker-heading">
               <div>
                 <strong>{t('config.openRouterFreePickerTitle')}</strong>
                 <span>{t('config.openRouterFreePickerSummary', {
@@ -1812,21 +1812,21 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               </div>
               <button type="button" onClick={() => { setOpenRouterFreeCatalog(null); setOpenRouterFreeSelection([]); setOpenRouterFreeQuery('') }}>{t('config.openRouterFreeClose')}</button>
             </div>
-            <div className="dmp-config-free-picker-toolbar">
+            <div className="dsa-config-free-picker-toolbar">
               <input value={openRouterFreeQuery} onChange={event => setOpenRouterFreeQuery(event.currentTarget.value)} placeholder={t('config.openRouterFreeSearch')} />
               <button type="button" onClick={selectVisibleOpenRouterFreeModels}>{t('config.openRouterFreeSelectVisible')}</button>
               <button type="button" onClick={selectUnconfiguredOpenRouterFreeModels}>{t('config.openRouterFreeSelectNew')}</button>
               <button type="button" disabled={openRouterFreeSelection.length === 0} onClick={() => setOpenRouterFreeSelection([])}>{t('config.openRouterFreeClear')}</button>
             </div>
-            <div className="dmp-config-free-picker-list">
+            <div className="dsa-config-free-picker-list">
               {visibleOpenRouterFreeModels.map(model => (
                 <label key={model.id}>
                   <input type="checkbox" checked={openRouterFreeSelection.includes(model.id)} onChange={() => toggleOpenRouterFreeModel(model.id)} />
-                  <span className="dmp-config-free-picker-model">
+                  <span className="dsa-config-free-picker-model">
                     <strong>{model.name ?? model.id}</strong>
                     <small>{model.id}</small>
                   </span>
-                  <span className="dmp-config-free-picker-meta">
+                  <span className="dsa-config-free-picker-meta">
                     {configuredModelIds.has(model.id) && <em>{t('config.openRouterFreeConfigured')}</em>}
                     <small>{t('config.openRouterFreeContext', { value: model.contextWindow?.toLocaleString() ?? '?' })}</small>
                     <small>{t('config.openRouterFreeOutput', { value: model.maxTokens?.toLocaleString() ?? '?' })}</small>
@@ -1834,24 +1834,24 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   </span>
                 </label>
               ))}
-              {visibleOpenRouterFreeModels.length === 0 && <div className="dmp-config-empty">{t('config.openRouterFreeEmpty')}</div>}
+              {visibleOpenRouterFreeModels.length === 0 && <div className="dsa-config-empty">{t('config.openRouterFreeEmpty')}</div>}
             </div>
-            <div className="dmp-config-free-picker-footer">
+            <div className="dsa-config-free-picker-footer">
               <span>{t('config.openRouterFreeImportHint')}</span>
-              <button className="dmp-media-primary" type="button" disabled={openRouterFreeSelection.length === 0} onClick={importOpenRouterFreeModels}>{t('config.openRouterFreeImportSelected', { count: openRouterFreeSelection.length })}</button>
+              <button className="dsa-media-primary" type="button" disabled={openRouterFreeSelection.length === 0} onClick={importOpenRouterFreeModels}>{t('config.openRouterFreeImportSelected', { count: openRouterFreeSelection.length })}</button>
             </div>
           </section>
         )}
         {modelImport !== null && (
-          <section className="dmp-config-free-picker dmp-config-import-picker">
-            <div className="dmp-config-free-picker-heading">
+          <section className="dsa-config-free-picker dsa-config-import-picker">
+            <div className="dsa-config-free-picker-heading">
               <div>
                 <strong>{t('config.modelImportTitle')}</strong>
                 <span>{t('config.modelImportSummary', { count: modelImport.models.length, selected: modelImport.selection.length })}</span>
               </div>
               <button type="button" onClick={() => setModelImport(null)}>{t('config.openRouterFreeClose')}</button>
             </div>
-            <div className="dmp-config-free-picker-toolbar">
+            <div className="dsa-config-free-picker-toolbar">
               <input value={modelImport.query} onChange={event => setModelImport(current => current === null ? null : { ...current, query: event.currentTarget.value })} placeholder={t('config.modelImportSearch')} />
               <button type="button" onClick={() => setModelImport(current => current === null ? null : {
                 ...current,
@@ -1863,7 +1863,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               })}>{t('config.openRouterFreeSelectNew')}</button>
               <button type="button" disabled={modelImport.selection.length === 0} onClick={() => setModelImport(current => current === null ? null : { ...current, selection: [] })}>{t('config.openRouterFreeClear')}</button>
             </div>
-            <div className="dmp-config-free-picker-list">
+            <div className="dsa-config-free-picker-list">
               {visibleModelImport.map(model => {
                 const id = String(model.id)
                 return (
@@ -1876,11 +1876,11 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                         selection: current.selection.includes(id) ? current.selection.filter(item => item !== id) : [...current.selection, id],
                       })}
                     />
-                    <span className="dmp-config-free-picker-model">
+                    <span className="dsa-config-free-picker-model">
                       <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : id}</strong>
                       <small>{id}</small>
                     </span>
-                    <span className="dmp-config-free-picker-meta">
+                    <span className="dsa-config-free-picker-meta">
                       {configuredModelIds.has(id) && <em>{t('config.openRouterFreeConfigured')}</em>}
                       <small>{t('config.openRouterFreeContext', { value: typeof model.contextWindow === 'number' ? model.contextWindow.toLocaleString() : '?' })}</small>
                       <small>{t('config.openRouterFreeOutput', { value: typeof model.maxTokens === 'number' ? model.maxTokens.toLocaleString() : '?' })}</small>
@@ -1889,16 +1889,16 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   </label>
                 )
               })}
-              {visibleModelImport.length === 0 && <div className="dmp-config-empty">{t('config.openRouterFreeEmpty')}</div>}
+              {visibleModelImport.length === 0 && <div className="dsa-config-empty">{t('config.openRouterFreeEmpty')}</div>}
             </div>
-            <div className="dmp-config-free-picker-footer">
+            <div className="dsa-config-free-picker-footer">
               <span>{t('config.modelImportHint')}</span>
-              <button className="dmp-media-primary" type="button" disabled={modelImport.selection.length === 0} onClick={importSelectedModels}>{t('config.modelImportSelected', { count: modelImport.selection.length })}</button>
+              <button className="dsa-media-primary" type="button" disabled={modelImport.selection.length === 0} onClick={importSelectedModels}>{t('config.modelImportSelected', { count: modelImport.selection.length })}</button>
             </div>
           </section>
         )}
         {protocolResults !== null && (
-          <div className="dmp-config-protocol-results">
+          <div className="dsa-config-protocol-results">
             {protocolResults.map(result => <span className={result.available ? 'is-ok' : 'is-error'} key={result.protocol}>
               <strong>{result.protocol}</strong>{result.available ? t('config.protocolAvailable') : t('config.protocolUnavailable', { error: result.error ?? '?' })}
             </span>)}
@@ -1906,8 +1906,8 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           </div>
         )}
         {modelProtocolResults !== null && (
-          <section className="dmp-config-protocol-scan" aria-label={t('config.protocolScanResults')}>
-            <div className="dmp-config-protocol-scan-heading">
+          <section className="dsa-config-protocol-scan" aria-label={t('config.protocolScanResults')}>
+            <div className="dsa-config-protocol-scan-heading">
               <div>
                 <strong>{t('config.protocolScanResults')}</strong>
                 <span>{t('config.protocolScanSummary', {
@@ -1917,7 +1917,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                 })}</span>
               </div>
               <div>
-                {protocolSplitPreview !== null && <button className="dmp-media-primary" type="button" disabled={busy !== null} onClick={() => void splitProtocols()}>{busy === 'protocol-split' ? t('config.protocolSplitting') : t('config.protocolSplit')}</button>}
+                {protocolSplitPreview !== null && <button className="dsa-media-primary" type="button" disabled={busy !== null} onClick={() => void splitProtocols()}>{busy === 'protocol-split' ? t('config.protocolSplitting') : t('config.protocolSplit')}</button>}
                 {modelProtocolSummary.completionsOnly === modelProtocolResults.length && <button type="button" disabled={busy !== null} onClick={applyWholeRouteCompletions}>{t('config.protocolWholeCompletions')}</button>}
               </div>
             </div>
@@ -1926,7 +1926,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
               completions: protocolSplitPreview.completionsProviderId,
               count: modelProtocolSummary.completionsOnly,
             })}</p>}
-            <div className="dmp-config-protocol-scan-list">
+            <div className="dsa-config-protocol-scan-list">
               {modelProtocolResults.map(result => (
                 <article className={`is-${result.classification}`} key={result.model}>
                   <div><strong>{result.model}</strong><span>{t(protocolClassificationLabel(result.classification))}</span></div>
@@ -1937,7 +1937,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           </section>
         )}
         {apiKeyValidation !== null && (
-          <div className={`dmp-config-key-validation is-${apiKeyValidation.status}`} role="status">
+          <div className={`dsa-config-key-validation is-${apiKeyValidation.status}`} role="status">
             <strong>{apiKeyValidation.credentialTarget === 'runtime'
               ? t('config.apiKeyValidationRuntimeTarget', { source: apiKeyValidation.credentialSource ?? '?' })
               : t('config.apiKeyValidationDraftTarget')}</strong>
@@ -1957,16 +1957,16 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       </section>
       )}
 
-      <section className="dmp-config-card dmp-config-retry-card">
-        <details className="dmp-config-fold">
+      <section className="dsa-config-card dsa-config-retry-card">
+        <details className="dsa-config-fold">
           <summary>
-            <span className="dmp-config-fold-title">{t('config.retryTitle')}</span>
-            {retryDraft.enabled && retryDraft.maxRetries === 50 && <span className="dmp-config-retry-preset">{t('config.retryPreset50')}</span>}
-            <span className="dmp-config-fold-state">{retryDraft.enabled ? t('config.retryFoldOn', { retries: retryDraft.maxRetries }) : t('config.retryFoldOff')}</span>
+            <span className="dsa-config-fold-title">{t('config.retryTitle')}</span>
+            {retryDraft.enabled && retryDraft.maxRetries === 50 && <span className="dsa-config-retry-preset">{t('config.retryPreset50')}</span>}
+            <span className="dsa-config-fold-state">{retryDraft.enabled ? t('config.retryFoldOn', { retries: retryDraft.maxRetries }) : t('config.retryFoldOff')}</span>
           </summary>
-          <p className="dmp-config-fold-hint">{t('config.retryDescription')}</p>
-          <div className="dmp-config-provider-grid">
-            <label className="dmp-media-field">
+          <p className="dsa-config-fold-hint">{t('config.retryDescription')}</p>
+          <div className="dsa-config-provider-grid">
+            <label className="dsa-media-field">
               <span>{t('config.retryProviderMode')}</span>
               <select value={retryDraft.enabled ? 'custom' : 'inherit'} disabled={readOnly} onChange={event => setRetryDraft(current => ({
                 ...current,
@@ -1977,11 +1977,11 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                 <option value="custom">{t('config.retryProviderCustom')}</option>
               </select>
             </label>
-            <label className="dmp-media-field">
+            <label className="dsa-media-field">
               <span>{t('config.retryProviderCount')}</span>
               <input type="number" min="0" max={MAX_REQUEST_RETRIES} step="1" value={retryDraft.maxRetries} disabled={readOnly || !retryDraft.enabled} onChange={event => updateProviderRetryCount(event.currentTarget.value)} />
             </label>
-            <div className="dmp-config-retry-note dmp-config-span-2">
+            <div className="dsa-config-retry-note dsa-config-span-2">
               <strong>{t('config.retrySafetyTitle')}</strong>
               <span>{t('config.retrySafetyDescription', { retries: retryDraft.maxRetries, attempts: retryDraft.maxRetries + 1 })}</span>
             </div>
@@ -1990,15 +1990,15 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
       </section>
 
       {openRouterProfile && !creating && (
-        <section className="dmp-config-card dmp-config-freesync-card">
-          <details className="dmp-config-fold">
+        <section className="dsa-config-card dsa-config-freesync-card">
+          <details className="dsa-config-fold">
             <summary>
-              <span className="dmp-config-fold-title">{t('config.freeSyncTitle')}</span>
-              <span className="dmp-config-fold-state">{freeSyncDraft?.enabled === true ? t('config.freeSyncOnShort') : t('config.freeSyncOffShort')}</span>
+              <span className="dsa-config-fold-title">{t('config.freeSyncTitle')}</span>
+              <span className="dsa-config-fold-state">{freeSyncDraft?.enabled === true ? t('config.freeSyncOnShort') : t('config.freeSyncOffShort')}</span>
             </summary>
-            <p className="dmp-config-fold-hint">{t('config.freeSyncDescription')}</p>
+            <p className="dsa-config-fold-hint">{t('config.freeSyncDescription')}</p>
             {freeSyncInfo?.lastSyncAt !== undefined && typeof freeSyncInfo.lastSyncAt === 'string' && (
-              <span className="dmp-config-freesync-state">
+              <span className="dsa-config-freesync-state">
                 {typeof freeSyncInfo.total === 'number'
                   ? t('config.freeSyncStateOk', {
                     time: new Date(String(freeSyncInfo.lastSyncAt)).toLocaleString(),
@@ -2009,9 +2009,9 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   : t('config.freeSyncStateAt', { time: new Date(String(freeSyncInfo.lastSyncAt)).toLocaleString() })}
               </span>
             )}
-          {typeof freeSyncInfo?.error === 'string' && <div className="dmp-media-error" role="alert">{freeSyncInfo.error}</div>}
-          <div className="dmp-config-provider-grid">
-            <label className="dmp-media-field">
+          {typeof freeSyncInfo?.error === 'string' && <div className="dsa-media-error" role="alert">{freeSyncInfo.error}</div>}
+          <div className="dsa-config-provider-grid">
+            <label className="dsa-media-field">
               <span>{t('config.freeSyncToggle')}</span>
               <select
                 value={freeSyncDraft?.enabled ? 'on' : 'off'}
@@ -2022,7 +2022,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                 <option value="on">{t('config.freeSyncOn')}</option>
               </select>
             </label>
-            <label className="dmp-media-field">
+            <label className="dsa-media-field">
               <span>{t('config.freeSyncInterval')}</span>
               <input
                 type="number"
@@ -2034,12 +2034,12 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                 onChange={event => updateFreeSyncInterval(Number(event.currentTarget.value))}
               />
             </label>
-            <div className="dmp-config-retry-note dmp-config-span-2">
+            <div className="dsa-config-retry-note dsa-config-span-2">
               <strong>{t('config.freeSyncBehaviorTitle')}</strong>
               <span>{t('config.freeSyncBehaviorDescription')}</span>
             </div>
           </div>
-          <div className="dmp-config-status-row">
+          <div className="dsa-config-status-row">
             <span className={freeSyncDraft?.enabled ? 'is-ok' : ''}>
               {freeSyncDraft?.enabled === true ? t('config.freeSyncActive') : t('config.freeSyncIdle')}
             </span>
@@ -2053,26 +2053,26 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
         </section>
       )}
 
-      <section className="dmp-config-card dmp-config-model-card">
-        <div className="dmp-config-card-heading">
+      <section className="dsa-config-card dsa-config-model-card">
+        <div className="dsa-config-card-heading">
           <div><h3>{t('config.modelsTitle')}</h3><p>{t('config.modelsDescription')}</p></div>
-          <div className="dmp-config-heading-actions">
+          <div className="dsa-config-heading-actions">
             <span>{presetStatusText}</span>
-            <input className="dmp-config-model-search" value={modelQuery} onChange={event => setModelQuery(event.currentTarget.value)} placeholder={t('config.searchModels')} aria-label={t('config.searchModels')} />
+            <input className="dsa-config-model-search" value={modelQuery} onChange={event => setModelQuery(event.currentTarget.value)} placeholder={t('config.searchModels')} aria-label={t('config.searchModels')} />
             <button type="button" disabled={busy !== null} onClick={() => void refreshPresets()}>{t('config.refreshPresets')}</button>
             <button type="button" disabled={busy !== null || models.length === 0} onClick={autoApplyPresets}>{t('config.autoPreset')}</button>
             <button type="button" disabled={busy !== null || models.length === 0} onClick={enableReasoningForProvider}>{t('config.reasoningProviderEnable')}</button>
             <button type="button" disabled={busy !== null} onClick={addModel}>{t('config.addModel')}</button>
           </div>
         </div>
-        {catalogBacked && <div className="dmp-config-catalog-note">{t('config.catalogModelsManaged')}</div>}
-        <datalist id="dmp-preset-options">
+        {catalogBacked && <div className="dsa-config-catalog-note">{t('config.catalogModelsManaged')}</div>}
+        <datalist id="dsa-preset-options">
           {registry.presets.map(preset => <option key={preset.id} value={preset.name}>{preset.name}</option>)}
         </datalist>
 
-        {models.length === 0 && <div className="dmp-config-empty">{t('config.noModels')}</div>}
-        {models.length > 0 && visibleModels.length === 0 && <div className="dmp-config-empty">{t('config.noMatchingModels')}</div>}
-        <div className="dmp-config-models">
+        {models.length === 0 && <div className="dsa-config-empty">{t('config.noModels')}</div>}
+        {models.length > 0 && visibleModels.length === 0 && <div className="dsa-config-empty">{t('config.noMatchingModels')}</div>}
+        <div className="dsa-config-models">
           {renderedModels.map(({ model, index }) => {
             const automatic = sourcePreset(model, registry.presets)
             const selectedPresetId = manualPresets[index] ?? automatic?.id ?? ''
@@ -2083,12 +2083,12 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
             const reasoningEfforts = reasoningEffortsValue(model)
             const reasoningMode = reasoningEfforts === undefined ? 'inherit' : reasoningEfforts === false ? 'disabled' : 'custom'
             return (
-              <article className="dmp-config-model" key={`${String(model.id)}-${index}`}>
-                <div className="dmp-config-model-top">
-                  <span className="dmp-config-model-title">
+              <article className="dsa-config-model" key={`${String(model.id)}-${index}`}>
+                <div className="dsa-config-model-top">
+                  <span className="dsa-config-model-title">
                     <strong>{typeof model.name === 'string' && model.name !== '' ? model.name : typeof model.id === 'string' && model.id !== '' ? model.id : `${t('config.model')} ${index + 1}`}</strong>
                     <code>{modelId}</code>
-                    <span className="dmp-config-model-badges">
+                    <span className="dsa-config-model-badges">
                       {typeof model.contextWindow === 'number' && Number.isFinite(model.contextWindow) && <em title={t('config.contextWindow')}>{formatTokenCount(model.contextWindow)}</em>}
                       {typeof model.maxTokens === 'number' && Number.isFinite(model.maxTokens) && <em title={t('config.maxTokens')}>↩{formatTokenCount(model.maxTokens)}</em>}
                       {modelInputMode === 'text-image' && <em title={t('config.inputTextImage')}>👁</em>}
@@ -2098,33 +2098,33 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   </span>
                   <div>
                     <button type="button" disabled={busy !== null} onClick={() => duplicateModel(index)}>{t('config.duplicateModel')}</button>
-                    <button type="button" className="dmp-danger" disabled={busy !== null} onClick={() => removeModel(index)}>{t('config.remove')}</button>
+                    <button type="button" className="dsa-danger" disabled={busy !== null} onClick={() => removeModel(index)}>{t('config.remove')}</button>
                   </div>
                 </div>
-                <details className="dmp-config-model-body">
+                <details className="dsa-config-model-body">
                   <summary>{t('config.editModel')}</summary>
-                <div className="dmp-config-model-grid">
-                  <label className="dmp-media-field dmp-config-span-2">
+                <div className="dsa-config-model-grid">
+                  <label className="dsa-media-field dsa-config-span-2">
                     <span>{t('config.modelId')}</span>
                     <input value={typeof model.id === 'string' ? model.id : ''} disabled={readOnly} onChange={event => updateModel(index, setOptionalString(model, 'id', event.currentTarget.value))} />
                   </label>
-                  <label className="dmp-media-field dmp-config-span-2">
+                  <label className="dsa-media-field dsa-config-span-2">
                     <span>{t('config.modelName')}</span>
                     <input value={typeof model.name === 'string' ? model.name : ''} disabled={readOnly} onChange={event => updateModel(index, setOptionalString(model, 'name', event.currentTarget.value))} placeholder={t('config.optional')} />
                   </label>
-                  <label className="dmp-media-field">
+                  <label className="dsa-media-field">
                     <span>{t('config.contextWindow')}</span>
                     <input inputMode="numeric" value={positiveIntegerText(model.contextWindow)} disabled={readOnly} onChange={event => {
                       try { updateModel(index, setOptionalPositiveInteger(model, 'contextWindow', event.currentTarget.value)); setError(null) } catch (cause) { setError(messageOf(cause)) }
                     }} placeholder="262144" />
                   </label>
-                  <label className="dmp-media-field">
+                  <label className="dsa-media-field">
                     <span>{t('config.maxTokens')}</span>
                     <input inputMode="numeric" value={positiveIntegerText(model.maxTokens)} disabled={readOnly} onChange={event => {
                       try { updateModel(index, setOptionalPositiveInteger(model, 'maxTokens', event.currentTarget.value)); setError(null) } catch (cause) { setError(messageOf(cause)) }
                     }} placeholder="32768" />
                   </label>
-                  <label className="dmp-media-field">
+                  <label className="dsa-media-field">
                     <span>{t('config.inputTypes')}</span>
                     <select value={modelInputMode} disabled={readOnly} onChange={event => updateModel(index, setInputMode(model, event.currentTarget.value as ReturnType<typeof inputMode>))}>
                       <option value="inherit">{t('config.inputInherit')}</option>
@@ -2133,8 +2133,8 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                       <option value="image">{t('config.inputImageOnly')}</option>
                     </select>
                   </label>
-                  <div className="dmp-config-model-retry">
-                    <label className="dmp-media-field">
+                  <div className="dsa-config-model-retry">
+                    <label className="dsa-media-field">
                       <span>{t('config.retryModelMode')}</span>
                       <select value={retryMode} disabled={readOnly || modelId === ''} onChange={event => updateModelRetryMode(modelId, event.currentTarget.value as 'inherit' | 'disabled' | 'custom')}>
                         <option value="inherit">{t('config.retryModelInherit')}</option>
@@ -2144,11 +2144,11 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                     </label>
                     {retryMode === 'custom' && <input type="number" min="1" max={MAX_REQUEST_RETRIES} step="1" value={retryDraft.models[modelId]} disabled={readOnly || modelId === ''} onChange={event => updateModelRetryCount(modelId, event.currentTarget.value)} aria-label={t('config.retryModelCount')} />}
                   </div>
-                  <div className="dmp-config-preset">
-                    <label className="dmp-media-field">
+                  <div className="dsa-config-preset">
+                    <label className="dsa-media-field">
                       <span>{t('config.preset')}</span>
                       <input
-                        list="dmp-preset-options"
+                        list="dsa-preset-options"
                         value={selectedPreset !== undefined ? selectedPreset.name : selectedPresetId}
                         disabled={readOnly}
                         onChange={event => {
@@ -2169,10 +2169,10 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   </div>
                 </div>
 
-                <details className="dmp-config-reasoning" open={reasoningMode === 'custom'}>
+                <details className="dsa-config-reasoning" open={reasoningMode === 'custom'}>
                   <summary>{t('config.reasoningTitle')}</summary>
-                  <div className="dmp-config-reasoning-toolbar">
-                    <label className="dmp-media-field">
+                  <div className="dsa-config-reasoning-toolbar">
+                    <label className="dsa-media-field">
                       <span>{t('config.reasoningMode')}</span>
                       <select value={reasoningMode} disabled={readOnly} onChange={event => {
                         const mode = event.currentTarget.value
@@ -2188,7 +2188,7 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                     <small>{t('config.reasoningDescription')}</small>
                   </div>
                   {reasoningEfforts !== undefined && reasoningEfforts !== false && (
-                    <div className="dmp-config-reasoning-grid">
+                    <div className="dsa-config-reasoning-grid">
                       {REASONING_LEVELS.map(level => {
                         const enabled = Object.hasOwn(reasoningEfforts, level)
                         const wireValue = reasoningEfforts[level]
@@ -2209,35 +2209,35 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                   )}
                 </details>
 
-                <details className="dmp-config-compat">
+                <details className="dsa-config-compat">
                   <summary>{t('config.compatibility')}</summary>
                   {protocol === 'openai-completions' ? (
-                    <div className="dmp-config-compat-grid">
-                      <label className="dmp-media-field">
+                    <div className="dsa-config-compat-grid">
+                      <label className="dsa-media-field">
                         <span>supportsDeveloperRole</span>
                         <select value={booleanChoice(compatValue(model, 'supportsDeveloperRole'))} disabled={readOnly} onChange={event => updateModel(index, setCompatField(model, 'supportsDeveloperRole', event.currentTarget.value === '' ? undefined : event.currentTarget.value === 'true'))}>
                           <option value="">{t('config.inherit')}</option><option value="true">true</option><option value="false">false</option>
                         </select>
                       </label>
-                      <label className="dmp-media-field">
+                      <label className="dsa-media-field">
                         <span>supportsReasoningEffort</span>
                         <select value={booleanChoice(compatValue(model, 'supportsReasoningEffort'))} disabled={readOnly} onChange={event => updateModel(index, setCompatField(model, 'supportsReasoningEffort', event.currentTarget.value === '' ? undefined : event.currentTarget.value === 'true'))}>
                           <option value="">{t('config.inherit')}</option><option value="true">true</option><option value="false">false</option>
                         </select>
                       </label>
-                      <label className="dmp-media-field">
+                      <label className="dsa-media-field">
                         <span>maxTokensField</span>
                         <select value={typeof compatValue(model, 'maxTokensField') === 'string' ? String(compatValue(model, 'maxTokensField')) : ''} disabled={readOnly} onChange={event => updateModel(index, setCompatField(model, 'maxTokensField', event.currentTarget.value || undefined))}>
                           <option value="">{t('config.inherit')}</option><option value="max_tokens">max_tokens</option><option value="max_completion_tokens">max_completion_tokens</option>
                         </select>
                       </label>
-                      <label className="dmp-media-field">
+                      <label className="dsa-media-field">
                         <span>thinkingFormat</span>
                         <select value={typeof compatValue(model, 'thinkingFormat') === 'string' ? String(compatValue(model, 'thinkingFormat')) : ''} disabled={readOnly} onChange={event => updateModel(index, setCompatField(model, 'thinkingFormat', event.currentTarget.value || undefined))}>
                           <option value="">{t('config.inherit')}</option>{THINKING_FORMATS.map(value => <option key={value} value={value}>{value}</option>)}
                         </select>
                       </label>
-                      <label className="dmp-media-field">
+                      <label className="dsa-media-field">
                         <span>requiresReasoningContentOnAssistantMessages</span>
                         <select value={booleanChoice(compatValue(model, 'requiresReasoningContentOnAssistantMessages'))} disabled={readOnly} onChange={event => updateModel(index, setCompatField(model, 'requiresReasoningContentOnAssistantMessages', event.currentTarget.value === '' ? undefined : event.currentTarget.value === 'true'))}>
                           <option value="">{t('config.inherit')}</option><option value="true">true</option><option value="false">false</option>
@@ -2245,8 +2245,8 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
                       </label>
                     </div>
                   ) : protocol === 'openai-responses' ? (
-                    <div className="dmp-config-compat-grid">
-                      <label className="dmp-media-field">
+                    <div className="dsa-config-compat-grid">
+                      <label className="dsa-media-field">
                         <span>supportsDeveloperRole</span>
                         <select value={booleanChoice(compatValue(model, 'supportsDeveloperRole'))} disabled={readOnly} onChange={event => updateModel(index, setCompatField(model, 'supportsDeveloperRole', event.currentTarget.value === '' ? undefined : event.currentTarget.value === 'true'))}>
                           <option value="">{t('config.inherit')}</option><option value="true">true</option><option value="false">false</option>
@@ -2261,18 +2261,18 @@ export function ConfigPanel({ api, isLoopback, mode = 'config', onSwitchMode, t 
           })}
         </div>
         {hiddenModels > 0 && (
-          <button type="button" className="dmp-config-show-all" disabled={busy !== null} onClick={() => setShowAllModels(true)}>
+          <button type="button" className="dsa-config-show-all" disabled={busy !== null} onClick={() => setShowAllModels(true)}>
             {t('config.showAllModels', { count: hiddenModels + renderedModels.length })}
           </button>
         )}
       </section>
 
       {dirty && (
-        <div className="dmp-config-savebar">
+        <div className="dsa-config-savebar">
           <span>{t('config.unsaved')}</span>
           <div>
             <button type="button" disabled={busy !== null} onClick={() => void load(true)}>{t('config.discardChanges')}</button>
-            <button className="dmp-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
+            <button className="dsa-media-primary" type="button" disabled={busy !== null || (!dirty && !compatibilityRepair.changed)} onClick={() => void save()}>{busy === 'save' ? t('config.saving') : t('config.save')}</button>
           </div>
         </div>
       )}

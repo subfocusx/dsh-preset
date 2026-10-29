@@ -2,10 +2,10 @@ import dns from 'node:dns'
 import https from 'node:https'
 import tls from 'node:tls'
 
-export const BAI_RELAY_PATH = '/model-palette/api/bai-relay'
+export const BAI_RELAY_PATH = '/dsa-preset/api/bai-relay'
 export const BAI_HOST_HEADER = 'api.b.ai'
 export const BAI_UPSTREAM_HOST = 'a18ccd091ab831ac3.awsglobalaccelerator.com'
-export const PROVIDER_RELAY_PATH = '/model-palette/api/relay'
+export const PROVIDER_RELAY_PATH = '/dsa-preset/api/relay'
 const DEFAULT_TIMEOUT_MS = 180_000
 const DEFAULT_ALLOWED_PATH_PREFIX = '/v1/'
 const DEFAULT_UPSTREAM_RETRIES = 2
@@ -71,7 +71,7 @@ export function registerBaiRelay(ctx, rawConfig = {}) {
     kind: 'prefix',
     path: BAI_RELAY_PATH,
     handler: createRelayHandler(BAI_RELAY_PATH, config, 'B.AI'),
-  }), 'dsh-model-palette: loopback B.AI relay')
+  }), 'dsa-preset: loopback B.AI relay')
 }
 
 /** Register user-configured fixed-destination relays for providers with unreachable canonical routes. */
@@ -83,7 +83,7 @@ export function registerProviderRelays(ctx, rawConfig = {}) {
       kind: 'prefix',
       path,
       handler: createRelayHandler(path, relay.config, relay.id),
-    }), `dsh-model-palette: loopback provider relay ${relay.id}`)
+    }), `dsa-preset: loopback provider relay ${relay.id}`)
   }
 }
 
@@ -133,7 +133,7 @@ function createRelayHandler(basePath, config, label) {
 function resolveProviderRelays(rawConfig) {
   if (rawConfig === undefined) return []
   if (rawConfig === null || typeof rawConfig !== 'object' || Array.isArray(rawConfig)) {
-    throw new Error('dsh-model-palette: providerRelays must be an object keyed by relay id')
+    throw new Error('dsa-preset: providerRelays must be an object keyed by relay id')
   }
   return Object.entries(rawConfig).map(([id, config]) => {
     const relayId = requireRelayId(id)
@@ -143,7 +143,7 @@ function resolveProviderRelays(rawConfig) {
 
 function requireRelayId(value) {
   if (typeof value !== 'string' || !RELAY_ID_PATTERN.test(value)) {
-    throw new Error('dsh-model-palette: provider relay ids must use lowercase letters, numbers, and hyphens')
+    throw new Error('dsa-preset: provider relay ids must use lowercase letters, numbers, and hyphens')
   }
   return value
 }
@@ -168,16 +168,16 @@ function resolveConfig(rawConfig, defaults, label) {
   const allowedPathPrefix = resolvePathPrefix(value.allowedPathPrefix, `${label}.allowedPathPrefix`)
   const timeoutMs = value.timeoutMs === undefined ? DEFAULT_TIMEOUT_MS : value.timeoutMs
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 900_000) {
-    throw new Error(`dsh-model-palette: ${label}.timeoutMs must be an integer from 1000 to 900000`)
+    throw new Error(`dsa-preset: ${label}.timeoutMs must be an integer from 1000 to 900000`)
   }
   const upstreamRetries = value.upstreamRetries === undefined ? DEFAULT_UPSTREAM_RETRIES : value.upstreamRetries
   if (!Number.isInteger(upstreamRetries) || upstreamRetries < 0 || upstreamRetries > MAX_UPSTREAM_RETRIES) {
-    throw new Error(`dsh-model-palette: ${label}.upstreamRetries must be an integer from 0 to ${MAX_UPSTREAM_RETRIES}`)
+    throw new Error(`dsa-preset: ${label}.upstreamRetries must be an integer from 0 to ${MAX_UPSTREAM_RETRIES}`)
   }
   const retryDelaysMs = resolveRetryDelays(value.retryDelaysMs, `${label}.retryDelaysMs`)
   const retryBodyLimitBytes = value.retryBodyLimitBytes === undefined ? DEFAULT_RETRY_BODY_LIMIT_BYTES : value.retryBodyLimitBytes
   if (!Number.isInteger(retryBodyLimitBytes) || retryBodyLimitBytes < 0 || retryBodyLimitBytes > MAX_RETRY_BODY_LIMIT_BYTES) {
-    throw new Error(`dsh-model-palette: ${label}.retryBodyLimitBytes must be an integer from 0 to ${MAX_RETRY_BODY_LIMIT_BYTES}`)
+    throw new Error(`dsa-preset: ${label}.retryBodyLimitBytes must be an integer from 0 to ${MAX_RETRY_BODY_LIMIT_BYTES}`)
   }
   return {
     enabled: value.enabled !== false,
@@ -196,14 +196,14 @@ function resolveConfig(rawConfig, defaults, label) {
 
 function resolveStrategies(rawStrategies, legacyRoute, label) {
   if (!Array.isArray(rawStrategies) || rawStrategies.length === 0 || rawStrategies.length > MAX_STRATEGIES) {
-    throw new Error(`dsh-model-palette: ${label}.strategies must contain 1 to ${MAX_STRATEGIES} entries`)
+    throw new Error(`dsa-preset: ${label}.strategies must contain 1 to ${MAX_STRATEGIES} entries`)
   }
   const ids = new Set()
   return rawStrategies.map((rawStrategy, index) => {
     const value = rawStrategy !== null && typeof rawStrategy === 'object' ? rawStrategy : {}
     const id = typeof value.id === 'string' && value.id.trim() !== '' ? value.id.trim() : `strategy-${index + 1}`
     if (!RELAY_ID_PATTERN.test(id) || ids.has(id)) {
-      throw new Error(`dsh-model-palette: ${label}.strategies contains an invalid or duplicate id`)
+      throw new Error(`dsa-preset: ${label}.strategies contains an invalid or duplicate id`)
     }
     ids.add(id)
     const upstreamHost = resolveHost(
@@ -228,7 +228,7 @@ function resolveStrategies(rawStrategies, legacyRoute, label) {
     )
     const addressIndex = value.addressIndex === undefined ? 0 : value.addressIndex
     if (!Number.isInteger(addressIndex) || addressIndex < 0 || addressIndex > MAX_ADDRESS_INDEX) {
-      throw new Error(`dsh-model-palette: ${label}.strategies[${index}].addressIndex must be an integer from 0 to ${MAX_ADDRESS_INDEX}`)
+      throw new Error(`dsa-preset: ${label}.strategies[${index}].addressIndex must be an integer from 0 to ${MAX_ADDRESS_INDEX}`)
     }
     return { id, upstreamHost, hostHeader, tlsServerName, certificateHost, addressIndex }
   })
@@ -237,7 +237,7 @@ function resolveStrategies(rawStrategies, legacyRoute, label) {
 function resolveHost(value, fallback, label) {
   const candidate = typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback
   if (typeof candidate !== 'string' || !HOST_PATTERN.test(candidate)) {
-    throw new Error(`dsh-model-palette: ${label} must be a valid DNS hostname`)
+    throw new Error(`dsa-preset: ${label} must be a valid DNS hostname`)
   }
   return candidate.toLocaleLowerCase()
 }
@@ -245,7 +245,7 @@ function resolveHost(value, fallback, label) {
 function resolvePathPrefix(value, label) {
   const prefix = value === undefined ? DEFAULT_ALLOWED_PATH_PREFIX : value
   if (typeof prefix !== 'string' || prefix === '/' || !prefix.startsWith('/') || !prefix.endsWith('/') || prefix.includes('..') || prefix.includes('?') || prefix.includes('#')) {
-    throw new Error(`dsh-model-palette: ${label} must start and end with / and contain no traversal or query characters`)
+    throw new Error(`dsa-preset: ${label} must start and end with / and contain no traversal or query characters`)
   }
   return prefix
 }
@@ -456,7 +456,7 @@ function sendUpstreamRequest(req, res, config, path, body, label, strategy, addr
 function resolveRetryDelays(value, label) {
   const delays = value === undefined ? DEFAULT_RETRY_DELAYS_MS : value
   if (!Array.isArray(delays) || delays.length === 0 || delays.some((delay) => !Number.isInteger(delay) || delay < 0 || delay > MAX_RETRY_DELAY_MS)) {
-    throw new Error(`dsh-model-palette: ${label} must be a non-empty array of integers from 0 to ${MAX_RETRY_DELAY_MS}`)
+    throw new Error(`dsa-preset: ${label} must be a non-empty array of integers from 0 to ${MAX_RETRY_DELAY_MS}`)
   }
   return [...delays]
 }

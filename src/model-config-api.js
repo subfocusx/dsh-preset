@@ -1,4 +1,4 @@
-const CONFIG_API_PATH = '/model-palette/api/config'
+const CONFIG_API_PATH = '/dsa-preset/api/config'
 const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models'
 const REQUEST_BODY_LIMIT = 65_536
 const PROBE_MAX_OUTPUT_TOKENS = 16
@@ -19,7 +19,7 @@ export function registerModelConfigApi(ctx) {
     kind: 'prefix',
     path: CONFIG_API_PATH,
     handler: createModelConfigApiHandler(ctx),
-  }), 'dsh-model-palette: model configuration API')
+  }), 'dsa-preset: model configuration API')
 }
 
 /** Create the model-configuration HTTP handler. */

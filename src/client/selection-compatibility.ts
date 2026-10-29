@@ -1,5 +1,6 @@
 import { ensureModelReasoning, providerProfiles, repairProviderCompatibility } from './model-config.ts'
 import type { PaletteApi } from './remote-compat.ts'
+import type { CurrentSelection, Selection } from './types.ts'
 
 const SETTINGS_NAMESPACE = 'llm-pi-ai'
 
@@ -38,6 +39,21 @@ export async function ensureSelectionCompatibility(
   })
   if (!mutation.result.ok) throw new Error(mutation.result.error.message)
   return repaired.repairedModels
+}
+
+/**
+ * Whether a wanted selection is identical to the live one. Every select()
+ * appends a session event and rewrites the default-model config on the host,
+ * which re-renders host panels — so identical selections must be skipped
+ * by every select path (quick menu, list, effort). Pure for unit testing.
+ */
+export function isSameSelection(
+  live: CurrentSelection | null | undefined,
+  wanted: Selection,
+): boolean {
+  if (live === null || live === undefined) return false
+  if (live.provider !== wanted.provider || live.model !== wanted.model) return false
+  return (live.reasoningEffort ?? '') === (wanted.reasoningEffort ?? '')
 }
 
 /** Ensure a selected model exposes every DSH reasoning level before submitting that level. */

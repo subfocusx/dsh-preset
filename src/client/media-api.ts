@@ -49,7 +49,7 @@ interface MediaApiFailure {
   error?: { message?: string }
 }
 
-const API_BASE = '/model-palette/api/media'
+const API_BASE = '/dsa-preset/api/media'
 
 export function mediaModelNeedsConfirmation(model: MediaModel, allowPaid: boolean): boolean {
   return !model.free && !allowPaid

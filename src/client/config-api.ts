@@ -8,7 +8,7 @@ interface ConfigApiFailure {
   error?: { message?: string }
 }
 
-const CONFIG_API_BASE = '/model-palette/api/config'
+const CONFIG_API_BASE = '/dsa-preset/api/config'
 
 export type ProtocolProbeResult = {
   protocol: 'openai-completions' | 'openai-responses'
@@ -245,7 +245,7 @@ export type FreeSyncSummary = {
 
 /** Synchronize one provider's model list to the live OpenRouter :free catalog right now. */
 export async function syncProviderFreeModels(provider: string): Promise<FreeSyncSummary> {
-  const response = await fetch('/model-palette/api/free-sync', {
+  const response = await fetch('/dsa-preset/api/free-sync', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ provider }),

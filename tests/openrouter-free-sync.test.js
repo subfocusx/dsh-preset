@@ -4,12 +4,12 @@ import { createFreeSyncRuntime, mergeFreeSyncModels } from '../src/openrouter-fr
 function settingsStub(value) {
   return {
     get(ns) {
-      if (ns === 'dsh-model-palette') return value.plugin
+      if (ns === 'dsa-preset') return value.plugin
       if (ns === 'llm-pi-ai') return value.llm
       return undefined
     },
     async mutate(ns, ops) {
-      const target = ns === 'dsh-model-palette' ? value.plugin : ns === 'llm-pi-ai' ? value.llm : undefined
+      const target = ns === 'dsa-preset' ? value.plugin : ns === 'llm-pi-ai' ? value.llm : undefined
       if (target === undefined) throw new Error(`unknown namespace ${ns}`)
       for (const op of ops) {
         let node = target

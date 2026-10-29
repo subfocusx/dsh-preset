@@ -9,7 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const name = 'dsh-model-palette'
+export const name = 'dsa-preset'
 export const inject = ['tools', 'credentials', 'webServer', 'llm', 'settings']
 
 function debugLog(msg) {
@@ -17,7 +17,7 @@ function debugLog(msg) {
     const home = process.env.DSH_HOME?.trim()
       ? process.env.DSH_HOME
       : path.join(process.env.USERPROFILE || process.env.HOME || '.', '.dsh')
-    const dir = path.join(home, 'storage', 'dsh-model-palette')
+    const dir = path.join(home, 'storage', 'dsa-preset')
     fs.mkdirSync(dir, { recursive: true })
     fs.appendFileSync(path.join(dir, 'debug.log'), `${new Date().toISOString()} ${msg}\n`)
   } catch { /* 调试日志写入失败不影响运行 */ }
@@ -77,7 +77,7 @@ export function apply(ctx, config = {}) {
         ? ctx.settings.describe({ redactSecrets: false })
         : []
       debugLog(`describe ns: [${list.map(d => String(d.ns)).join(', ')}]`)
-      const ownId = ctx.fiber?.entry?.options?.id ?? 'dsh-model-palette'
+      const ownId = ctx.fiber?.entry?.options?.id ?? 'dsa-preset'
       debugLog(`own visible: ${list.some(d => String(d.ns) === ownId)}  fiber.state now=${ctx.fiber?.state}`)
     } catch (error) {
       debugLog(`describe failed: ${error?.stack || error}`)

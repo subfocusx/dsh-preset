@@ -6,7 +6,7 @@ async function invoke(handler, body, options = {}) {
   const req = Readable.from([JSON.stringify(body)])
   Object.assign(req, {
     method: 'POST',
-    url: options.url ?? '/model-palette/api/config/credentials/reveal',
+    url: options.url ?? '/dsa-preset/api/config/credentials/reveal',
     headers: {
       'content-type': 'application/json',
       'sec-fetch-site': 'same-origin',
@@ -62,7 +62,7 @@ describe('model configuration credential API', () => {
     })
     try {
       const response = await invoke(createModelConfigApiHandler({ credentials: { resolve: vi.fn() } }), {}, {
-        url: '/model-palette/api/config/models/openrouter/free',
+        url: '/dsa-preset/api/config/models/openrouter/free',
       })
       expect(response.status).toBe(200)
       expect(response.body.value).toMatchObject({ models: [{
@@ -121,7 +121,7 @@ describe('model configuration credential API', () => {
       const response = await invoke(createModelConfigApiHandler({ credentials: {
         resolve: vi.fn(async () => ({ value: 'stored-secret', source: 'file' })),
       } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'GATEWAY_API_KEY', model: 'reasoner' }, {
-        url: '/model-palette/api/config/protocols/probe',
+        url: '/dsa-preset/api/config/protocols/probe',
       })
       expect(response).toEqual({ status: 200, body: { ok: true, value: { results: [
         { protocol: 'openai-completions', available: true },
@@ -155,7 +155,7 @@ describe('model configuration credential API', () => {
       const response = await invoke(createModelConfigApiHandler({ credentials: {
         resolve: vi.fn(async () => ({ value: 'wrong-provider-secret', source: 'file' })),
       } }), { baseURL: 'https://openrouter.ai/api/v1', credentialRef: 'OPENROUTER_API_KEY', model: 'openrouter/free' }, {
-        url: '/model-palette/api/config/protocols/probe',
+        url: '/dsa-preset/api/config/protocols/probe',
       })
 
       expect(response.status).toBe(200)
@@ -190,7 +190,7 @@ describe('model configuration credential API', () => {
         baseURL: 'https://gateway.example/v1',
         credentialRef: 'GATEWAY_API_KEY',
         models: ['responses-only', 'both', 'completions-only', 'neither'],
-      }, { url: '/model-palette/api/config/protocols/probe' })
+      }, { url: '/dsa-preset/api/config/protocols/probe' })
 
       expect(response.status).toBe(200)
       expect(response.body.value.results).toEqual([
@@ -218,7 +218,7 @@ describe('model configuration credential API', () => {
     }))
     const response = await invoke(createModelConfigApiHandler({ credentials: { resolve: vi.fn() }, llm: { resolveModelInfo } }), {
       provider: 'openai', models: ['gpt-vision'],
-    }, { url: '/model-palette/api/config/models/resolve' })
+    }, { url: '/dsa-preset/api/config/models/resolve' })
     expect(response).toEqual({ status: 200, body: { ok: true, value: { models: [{
       id: 'gpt-vision', name: 'Vision Reasoner', contextWindow: 200_000, maxTokens: 32_000, input: ['text', 'image'],
     }] } } })
@@ -230,10 +230,10 @@ describe('model configuration credential API', () => {
     const handler = createModelConfigApiHandler({ credentials: { resolve } })
     const oversized = await invoke(handler, {
       baseURL: 'https://gateway.example/v1', credentialRef: 'KEY', models: Array.from({ length: 101 }, (_value, index) => `m-${index}`),
-    }, { url: '/model-palette/api/config/protocols/probe' })
+    }, { url: '/dsa-preset/api/config/protocols/probe' })
     const duplicate = await invoke(handler, {
       baseURL: 'https://gateway.example/v1', credentialRef: 'KEY', models: ['same', 'same'],
-    }, { url: '/model-palette/api/config/protocols/probe' })
+    }, { url: '/dsa-preset/api/config/protocols/probe' })
     expect(oversized).toMatchObject({ status: 400, body: { ok: false } })
     expect(duplicate).toMatchObject({ status: 400, body: { ok: false } })
     expect(resolve).not.toHaveBeenCalled()
@@ -242,7 +242,7 @@ describe('model configuration credential API', () => {
   it('rejects protocol probing from a cross-site browser request', async () => {
     const resolve = vi.fn()
     const response = await invoke(createModelConfigApiHandler({ credentials: { resolve } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'KEY', model: 'm' }, {
-      url: '/model-palette/api/config/protocols/probe',
+      url: '/dsa-preset/api/config/protocols/probe',
       headers: { 'sec-fetch-site': 'cross-site' },
     })
     expect(response.status).toBe(403)
@@ -262,7 +262,7 @@ describe('model configuration credential API', () => {
       const response = await invoke(createModelConfigApiHandler({ credentials: {
         resolve: vi.fn(async () => ({ value: 'stored-secret', source: 'file' })),
       } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'GATEWAY_API_KEY', protocol: 'openai-responses', model: 'reasoner' }, {
-        url: '/model-palette/api/config/credentials/validate',
+        url: '/dsa-preset/api/config/credentials/validate',
       })
       expect(response).toEqual({ status: 200, body: { ok: true, value: {
         protocol: 'openai-responses', model: 'reasoner', status: 'invalid', checkedBy: 'request', httpStatus: 401,
@@ -286,7 +286,7 @@ describe('model configuration credential API', () => {
       const response = await invoke(createModelConfigApiHandler({ credentials: {
         resolve: vi.fn(async () => ({ value: 'bad-secret' })),
       } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'GATEWAY_API_KEY', protocol: 'openai-completions', model: 'reasoner' }, {
-        url: '/model-palette/api/config/credentials/validate',
+        url: '/dsa-preset/api/config/credentials/validate',
       })
       expect(response.body.value).toMatchObject({
         protocol: 'openai-completions', model: 'reasoner', status: 'invalid', checkedBy: 'request', httpStatus: 401,
@@ -313,7 +313,7 @@ describe('model configuration credential API', () => {
       const response = await invoke(createModelConfigApiHandler({ credentials: {
         resolve: vi.fn(async () => ({ value: 'stored-secret', source: 'file' })),
       } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'GATEWAY_API_KEY', protocol: 'openai-completions', model: 'reasoner' }, {
-        url: '/model-palette/api/config/credentials/validate',
+        url: '/dsa-preset/api/config/credentials/validate',
       })
       expect(response.body.value).toMatchObject({
         status: 'blocked', httpStatus: 403,
@@ -338,7 +338,7 @@ describe('model configuration credential API', () => {
         resolve: vi.fn(async () => ({ value: 'runtime-secret', source: 'file' })),
       } }), {
         baseURL: 'https://gateway.example/v1', credentialRef: 'GATEWAY_API_KEY', protocol: 'openai-completions', model: 'reasoner', apiKey: 'draft-secret',
-      }, { url: '/model-palette/api/config/credentials/validate' })
+      }, { url: '/dsa-preset/api/config/credentials/validate' })
       expect(response.body.value).toEqual({
         protocol: 'openai-completions', model: 'reasoner', status: 'invalid', checkedBy: 'request', httpStatus: 400,
         message: 'HTTP 400: API key is invalid', credentialTarget: 'runtime', runtimeConfigured: true,
@@ -364,7 +364,7 @@ describe('model configuration credential API', () => {
       const response = await invoke(createModelConfigApiHandler({ credentials: {
         resolve: vi.fn(async () => ({ value: 'anthropic-secret' })),
       } }), { baseURL: 'https://gateway.example/v1', credentialRef: 'ANTHROPIC_API_KEY', protocol: 'anthropic-messages', model: 'claude-test' }, {
-        url: '/model-palette/api/config/credentials/validate',
+        url: '/dsa-preset/api/config/credentials/validate',
       })
       expect(response.body.value).toMatchObject({ protocol: 'anthropic-messages', status: 'valid', checkedBy: 'request', httpStatus: 200 })
       expect(calls[0].url).toBe('https://gateway.example/v1/messages')
@@ -396,7 +396,7 @@ describe('model configuration credential API', () => {
         { provider: 'good', displayName: 'Good', baseURL: 'https://good.example/v1', credentialRef: 'GOOD_API_KEY', protocol: 'openai-responses', model: 'gpt-test' },
         { provider: 'bad', displayName: 'Bad', baseURL: 'https://bad.example/v1', credentialRef: 'BAD_API_KEY', protocol: 'openai-completions', model: 'bad-model' },
         { provider: 'missing', displayName: 'Missing', baseURL: 'https://missing.example/v1', credentialRef: 'MISSING_API_KEY', protocol: 'anthropic-messages', model: 'claude-test' },
-      ] }, { url: '/model-palette/api/config/credentials/validate-batch' })
+      ] }, { url: '/dsa-preset/api/config/credentials/validate-batch' })
       expect(response.status).toBe(200)
       expect(response.body.value.results).toEqual([
         expect.objectContaining({ provider: 'good', status: 'valid', credentialSource: 'file', httpStatus: 200 }),
@@ -423,7 +423,7 @@ describe('model configuration credential API', () => {
         llm: { listModels: vi.fn(async () => [{ id: 'gpt-runtime', name: 'GPT Runtime', provider: 'openai' }]) },
       }), { providers: [
         { provider: 'openai', displayName: 'OpenAI', baseURL: 'https://api.example/v1', credentialRef: 'OPENAI_API_KEY', protocol: 'openai-responses', model: '' },
-      ] }, { url: '/model-palette/api/config/credentials/validate-batch' })
+      ] }, { url: '/dsa-preset/api/config/credentials/validate-batch' })
       expect(response.body.value.results[0]).toMatchObject({ status: 'valid', model: 'gpt-runtime' })
     } finally {
       globalThis.fetch = originalFetch

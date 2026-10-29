@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
-import { ConfigPanel } from './ConfigPanel.tsx'
-import { MediaPanel } from './MediaPanel.tsx'
-import { RelayPanel } from './RelayPanel.tsx'
 import { choiceKey, currentChoice, flattenChoices, pushRecent, rankChoices, toggleFavorite } from './model.ts'
 import { formatTokenCount, REASONING_LEVELS } from './model-config.ts'
 import { ProviderIcon } from './ProviderIcon.tsx'
 import { providerMeta } from './provider-catalog.ts'
-import { ensureSelectionCompatibility, ensureSelectionReasoning, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
+import { ensureSelectionCompatibility, ensureSelectionReasoning, isSameSelection as isSameLiveSelection, mayNeedReasoningCompatibility } from './selection-compatibility.ts'
+import { holdLastGood, isSettledStatus } from './trigger-stability.ts'
 import type { ModelChoice, PaletteProps, Selection } from './types.ts'
 
-const FAVORITES_KEY = 'dsh-model-palette:favorites:v1'
-const RECENTS_KEY = 'dsh-model-palette:recents:v1'
-type ModelPaletteView = 'models' | 'media' | 'config' | 'catalog' | 'relay'
+const FAVORITES_KEY = 'dsa-preset:favorites:v1'
+const RECENTS_KEY = 'dsa-preset:recents:v1'
+/** Per-model effort memory: choiceKey -> reasoningEffort ('' = provider default). */
+const EFFORTS_KEY = 'dsa-preset:efforts:v1'
+type ModelPaletteView = 'models'
 
 interface ModelBadges {
   context?: number
@@ -69,7 +69,7 @@ function readStoredList(key: string): string[] {
     const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]')
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
   } catch (error) {
-    console.warn(`[dsh-model-palette] ignored invalid ${key}`, error)
+    console.warn(`[dsa-preset] ignored invalid ${key}`, error)
     return []
   }
 }
@@ -78,7 +78,7 @@ function writeStoredList(key: string, values: readonly string[]): void {
   try {
     localStorage.setItem(key, JSON.stringify(values))
   } catch (error) {
-    console.warn(`[dsh-model-palette] failed to persist ${key}`, error)
+    console.warn(`[dsa-preset] failed to persist ${key}`, error)
   }
 }
 
@@ -87,6 +87,38 @@ function useStoredList(key: string): [string[], (next: string[]) => void] {
   const update = (next: string[]) => {
     setValues(next)
     writeStoredList(key, next)
+  }
+  return [values, update]
+}
+
+function readStoredRecord(key: string): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '{}')
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>).filter(
+        (entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string',
+      ),
+    )
+  } catch (error) {
+    console.warn(`[dsa-preset] ignored invalid ${key}`, error)
+    return {}
+  }
+}
+
+function writeStoredRecord(key: string, values: Readonly<Record<string, string>>): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(values))
+  } catch (error) {
+    console.warn(`[dsa-preset] failed to persist ${key}`, error)
+  }
+}
+
+function useStoredRecord(key: string): [Record<string, string>, (next: Record<string, string>) => void] {
+  const [values, setValues] = useState<Record<string, string>>(() => readStoredRecord(key))
+  const update = (next: Record<string, string>) => {
+    setValues(next)
+    writeStoredRecord(key, next)
   }
   return [values, update]
 }
@@ -101,7 +133,7 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-interface EffortSliderProps {
+interface EffortSelectProps {
   value: string
   options: ReadonlyArray<{ id: string; name: string }>
   defaultLabel: string
@@ -116,51 +148,110 @@ interface EffortSliderProps {
  * Codex-style discrete reasoning-effort slider. Stops come from the current
  * model's declared efforts only, prefixed by the provider default.
  */
-function EffortSlider({ value, options, defaultLabel, label, disabled, compact = false, onChange }: EffortSliderProps): JSX.Element {
-  const stops = ['', ...options.map(option => option.id)]
-  const index = value === '' ? 0 : Math.max(0, stops.indexOf(value))
-  const activeName = value === '' ? defaultLabel : options.find(option => option.id === value)?.name ?? value
+function EffortSelect({ value, options, defaultLabel, label, disabled, compact = false, onChange }: EffortSelectProps): JSX.Element {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  // Unconditional: keeps hook order stable across compact/non-compact use.
+  const compactActiveName = value === '' ? defaultLabel : (options.find(option => option.id === value)?.name ?? value)
+  const { innerRef: effortInnerRef, width: effortWidth } = useAnimatedWidth(compactActiveName, 20)
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current !== null && !menuRef.current.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuOpen])
   if (compact) {
+    const activeName = compactActiveName
+    const items: Array<{ id: string; name: string }> = [{ id: '', name: defaultLabel }, ...options]
     return (
-      <div className={`dmp-effort-slider is-compact${disabled ? ' is-busy' : ''}`} title={`${label}: ${activeName}`}>
-        <span className="dmp-effort-slider-value">{activeName}</span>
-        <input
-          type="range"
-          min={0}
-          max={stops.length - 1}
-          step={1}
-          value={Math.min(index, stops.length - 1)}
+      <div ref={menuRef} className={`dsa-effort-select is-compact${disabled ? ' is-busy' : ''}${menuOpen ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="dsa-effort-button"
+          style={effortWidth === null ? undefined : { width: effortWidth }}
           disabled={disabled}
           aria-label={label}
-          onChange={event => onChange(stops[Number(event.currentTarget.value)])}
-        />
+          aria-haspopup="listbox"
+          aria-expanded={menuOpen}
+          title={`${label}: ${activeName}`}
+          onClick={() => setMenuOpen(open => !open)}
+        >
+          <span className="dsa-effort-inner" ref={effortInnerRef}>
+            <span className="dsa-effort-bolt" aria-hidden="true">⚡</span>
+            <span className="dsa-effort-value">{activeName}</span>
+            <span className="dsa-effort-caret" aria-hidden="true">▾</span>
+          </span>
+        </button>
+        {menuOpen && !disabled && (
+          <ul className="dsa-effort-menu" role="listbox" aria-label={label}>
+            {items.map(item => (
+              <li key={item.id === '' ? '__default' : item.id} role="option" aria-selected={item.id === value}>
+                <button
+                  type="button"
+                  className={`dsa-effort-item${item.id === value ? ' is-active' : ''}`}
+                  onClick={() => { setMenuOpen(false); if (item.id !== value) onChange(item.id) }}
+                >
+                  <span className="dsa-effort-item-name">{item.name}</span>
+                  {item.id === value && <span className="dsa-effort-check" aria-hidden="true">✓</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     )
   }
   return (
-    <div className={`dmp-effort-slider${disabled ? ' is-busy' : ''}`}>
-      <div className="dmp-effort-slider-head">
-        <span>{label}</span>
-        <strong>{activeName}</strong>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={stops.length - 1}
-        step={1}
-        value={Math.min(index, stops.length - 1)}
+    <label className={`dsa-effort-select${disabled ? ' is-busy' : ''}`}>
+      <span className="dsa-effort-select-label">{label}</span>
+      <select
+        value={value}
         disabled={disabled}
         aria-label={label}
-        onChange={event => onChange(stops[Number(event.currentTarget.value)])}
-      />
-      <div className="dmp-effort-slider-scale">
-        <span className={value === '' ? 'is-on' : ''}>{defaultLabel}</span>
+        onChange={event => onChange(event.currentTarget.value)}
+      >
+        <option value="">{defaultLabel}</option>
         {options.map(option => (
-          <span key={option.id} className={option.id === value ? 'is-on' : ''}>{option.name}</span>
+          <option key={option.id} value={option.id}>{option.name}</option>
         ))}
-      </div>
-    </div>
+      </select>
+    </label>
   )
+}
+
+/**
+ * Smooth pill-width animation for the composer seats.
+ *
+ * Mechanism it addresses: every model/effort switch changes the seat's
+ * content width, and the instant width jump shifts the neighbouring host
+ * composer elements (visible as flicker/jerk of the black buttons).
+ * The pill stays content-sized — no reserved gap — but the width travels
+ * to the new value over ~0.18s (see `transition: width` on the seats),
+ * so neighbours glide instead of jumping.
+ *
+ * The inner content is measured with `scrollWidth` (immune to the
+ * button's own explicit width); `contentKey` must change whenever the
+ * visible content changes.
+ */
+function useAnimatedWidth(contentKey: string, horizontalPadding: number) {
+  const innerRef = useRef<HTMLSpanElement | null>(null)
+  const [width, setWidth] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const el = innerRef.current
+    if (el === null) return
+    const next = Math.ceil(el.scrollWidth) + horizontalPadding
+    setWidth(prev => (prev === next ? prev : next))
+  }, [contentKey, horizontalPadding])
+  return { innerRef, width }
 }
 
 export function ModelPalette({ locked, available, directory, load, select, api, isLoopback, t }: PaletteProps) {
@@ -168,13 +259,22 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   const choices = useMemo(() => flattenChoices(snapshot.groups), [snapshot.groups])
   const current = currentChoice(choices, snapshot.current)
   const [open, setOpen] = useState(false)
-  const [view, setView] = useState<ModelPaletteView>('models')
+  const [quickOpen, setQuickOpen] = useState(false)
+  const quickRef = useRef<HTMLDivElement>(null)
+  // Last good trigger display values — held across transient snapshot
+  // states so the trigger never flashes raw ids mid-reload (see
+  // trigger-stability.ts). Writes below are idempotent per value.
+  const lastLabelRef = useRef<string | null>(null)
+  const lastProviderRef = useRef<string | null>(null)
+  const lastEffortRef = useRef<{ options: ReadonlyArray<{ id: string; name: string }>; value: string } | null>(null)
   const [query, setQuery] = useState('')
   const [providerId, setProviderId] = useState<string | null>(null)
   const [quickFilter, setQuickFilter] = useState<'all' | 'favorites' | 'recents'>('all')
   const [cursor, setCursor] = useState(0)
   const [favorites, setFavorites] = useStoredList(FAVORITES_KEY)
   const [recents, setRecents] = useStoredList(RECENTS_KEY)
+  const [effortMap, setEffortMap] = useStoredRecord(EFFORTS_KEY)
+  const [appliedKey, setAppliedKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [effortBusy, setEffortBusy] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -198,21 +298,113 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     quickFilter,
   }), [choices, query, providerId, favorites, recents, snapshot.current, quickFilter])
 
+  const favoriteChoices = useMemo(
+    () => choices.filter(choice => favorites.includes(choice.key)),
+    [choices, favorites],
+  )
+  const quickChoices = useMemo(
+    () => favoriteChoices.length > 0
+      ? favoriteChoices
+      : choices.filter(choice => recents.includes(choice.key)).slice(0, 6),
+    [favoriteChoices, choices, recents],
+  )
+
+  useEffect(() => {
+    if (!quickOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (quickRef.current !== null && !quickRef.current.contains(event.target as Node)) setQuickOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setQuickOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [quickOpen])
+
+  /** Build the selection for a choice, restoring the remembered per-model effort. */
+  const selectionWithSavedEffort = (choice: ModelChoice): Selection => {
+    const savedEffort = effortMap[choice.key]
+    const fallbackEffort = choice.selection.reasoningEffort
+    const wantedEffort = savedEffort !== undefined ? savedEffort : (fallbackEffort ?? '')
+    return {
+      provider: choice.provider.id,
+      model: choice.model.id,
+      ...(wantedEffort === '' ? {} : { reasoningEffort: wantedEffort }),
+    }
+  }
+
+  /** Fast path for the quick preset menu: apply + close the small menu only. */
+  const applyQuick = async (choice: ModelChoice) => {
+    // Close the menu synchronously first so it never lingers (and never
+    // re-renders) while the async select + host snapshot update run.
+    setQuickOpen(false)
+    const wanted = selectionWithSavedEffort(choice)
+    // No-op guard: every select() appends a session event and rewrites the
+    // default-model config, making the host re-render its panels (blink).
+    if (isSameSelection(wanted)) {
+      setRecents(pushRecent(recents, choice.key))
+      return
+    }
+    if (mayNeedReasoningCompatibility(choice.provider.id, choice.model.id, choice.model.name)) {
+      try {
+        const repaired = await ensureSelectionCompatibility(api, choice.provider.id, choice.model.id)
+        if (repaired.length > 0) load()
+      } catch (cause) {
+        setError(t('palette.compatRepairFailed', { message: messageOf(cause) }))
+        return
+      }
+    }
+    const outcome = await select(wanted)
+    if (outcome === undefined || outcome.ok !== true) {
+      const reason = outcome?.error?.message ?? ''
+      setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
+      return
+    }
+    setRecents(pushRecent(recents, choice.key))
+  }
+
+  /**
+   * No-op guard shared by every select path: an identical selection still
+   * appends a session event and rewrites the default-model config on the
+   * host, which re-renders host panels (visible blink) for zero effect.
+   * The native seat has no such early-out — its Directory.select always
+   * calls sessions.selectModel — so this guard makes the plugin strictly
+   * quieter than native on identical clicks. On a real switch both paths
+   * call the identical host RPC and blink the same.
+   * Logic lives in isSameSelection (unit-tested); this only binds live state.
+   */
+  const isSameSelection = (selection: Selection): boolean =>
+    isSameLiveSelection(snapshot.current, selection)
+
+  const toggleQuick = (): void => {
+    if (!available || locked) return
+    if (open) return
+    setError(null)
+    // The directory is already subscribed via useSyncExternalStore: only
+    // refresh when we have nothing yet, otherwise every open would churn the
+    // store and re-render the whole palette.
+    if (snapshot.groups.length === 0) load()
+    setQuickOpen(value => !value)
+  }
+
   const favoriteCount = useMemo(() => choices.filter(choice => favorites.includes(choice.key)).length, [choices, favorites])
   const recentCount = useMemo(() => choices.filter(choice => recents.includes(choice.key)).length, [choices, recents])
 
-  const show = useCallback((nextView: ModelPaletteView = 'models'): boolean => {
+  const show = useCallback((): boolean => {
     if (!available || locked) return false
     setOpen(true)
-    setView(nextView)
     setQuery('')
     setProviderId(null)
     setQuickFilter('all')
     setCursor(0)
     setError(null)
-    load()
+    if (snapshot.groups.length === 0) load()
     return true
-  }, [available, load, locked])
+  }, [available, load, locked, snapshot.groups.length])
 
   const close = () => {
     setOpen(false)
@@ -220,26 +412,19 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   }
 
   useEffect(() => {
-    if (!open || view !== 'models') return
+    if (!open) return
     const frame = requestAnimationFrame(() => searchRef.current?.focus())
     return () => cancelAnimationFrame(frame)
-  }, [open, view])
+  }, [open])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey && !event.ctrlKey && !event.metaKey && event.key.toLocaleLowerCase() === 'm') {
-        event.preventDefault()
-        if (open) close()
-        else show()
-        return
-      }
       if (!open) return
       if (event.key === 'Escape') {
         event.preventDefault()
         close()
         return
       }
-      if (view !== 'models') return
       if (event.key === 'ArrowDown') {
         event.preventDefault()
         setCursor((value) => Math.min(value + 1, Math.max(0, results.length - 1)))
@@ -257,7 +442,7 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, locked, available, results, cursor, view])
+  }, [open, locked, available, results, cursor])
 
   useEffect(() => {
     setCursor(0)
@@ -272,6 +457,14 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   }, [cursor])
 
   const choose = async (choice: ModelChoice) => {
+    const wanted = selectionWithSavedEffort(choice)
+    // No-op guard: identical selection still churns the host (session
+    // event + config rewrite → panel blink) for zero effect.
+    if (isSameSelection(wanted)) {
+      setRecents(pushRecent(recents, choice.key))
+      setAppliedKey(choice.key)
+      return
+    }
     if (mayNeedReasoningCompatibility(choice.provider.id, choice.model.id, choice.model.name)) {
       try {
         const repaired = await ensureSelectionCompatibility(api, choice.provider.id, choice.model.id)
@@ -281,18 +474,25 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         return
       }
     }
-    const outcome = await select(choice.selection)
+    // Prefer the effort remembered for this exact model over the catalog default,
+    // so switching models no longer resets a tuned effort to provider default.
+    const outcome = await select(wanted)
     if (outcome === undefined || outcome.ok !== true) {
       const reason = outcome?.error?.message ?? ''
       setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
       return
     }
     setRecents(pushRecent(recents, choice.key))
-    close()
+    // Keep the palette open on purpose: the user tunes effort per model and moves
+    // to the next row. Explicit close via ✕, overlay click or Escape.
+    setAppliedKey(choice.key)
   }
 
   const chooseEffort = async (value: string) => {
     if (snapshot.current === null) return
+    // No-op guard: re-selecting the live effort still appends a session
+    // event and rewrites the config on the host (panel blink, zero effect).
+    if ((snapshot.current.reasoningEffort ?? '') === (value ?? '')) return
     setEffortBusy(true)
     setError(null)
     try {
@@ -306,11 +506,19 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
         model: snapshot.current.model,
         ...(value === '' ? {} : { reasoningEffort: value }),
       }
+      if (isSameSelection(selection)) {
+        setEffortBusy(false)
+        return
+      }
       const outcome = await select(selection)
       if (outcome === undefined || outcome.ok !== true) {
         const reason = outcome?.error?.message ?? ''
         setError(reason === '' ? t('palette.selectFailed') : t('palette.selectFailedReason', { message: reason }))
+        return
       }
+      // Remember per model: '' keeps the key with empty value = explicit provider default.
+      const key = choiceKey(snapshot.current.provider, snapshot.current.model)
+      setEffortMap({ ...effortMap, [key]: value })
     } catch (cause) {
       setError(t('palette.reasoningEnableFailed', { message: messageOf(cause) }))
     } finally {
@@ -318,22 +526,56 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
     }
   }
 
-  const currentLabel = current?.model.name ?? snapshot.current?.model ?? t('trigger.fallback')
-  const providerLabel = current?.provider.name ?? snapshot.current?.provider
+  const settled = isSettledStatus(snapshot.status)
+  const heldLabel = holdLastGood(current?.model.name, lastLabelRef.current, settled)
+  lastLabelRef.current = heldLabel.last
+  const currentLabel = heldLabel.value ?? snapshot.current?.model ?? t('trigger.fallback')
+  const heldProvider = holdLastGood(current?.provider.name, lastProviderRef.current, settled)
+  lastProviderRef.current = heldProvider.last
+  const providerLabel = heldProvider.value ?? snapshot.current?.provider
+  // Animated (not reserved) seat width: content-sized, glides on switches.
+  const { innerRef: triggerInnerRef, width: triggerWidth } = useAnimatedWidth(
+    `${currentLabel} | ${providerLabel ?? ''}`,
+    16, // .dsa-trigger horizontal padding 0 8px
+  )
   const currentReasoning = current?.model.reasoning
-  const currentEffort = snapshot.current?.reasoningEffort ?? currentReasoning?.defaultEffort ?? ''
+  const currentKey = snapshot.current === null ? null : choiceKey(snapshot.current.provider, snapshot.current.model)
+  const currentEffort = snapshot.current?.reasoningEffort
+    ?? (currentKey === null ? undefined : effortMap[currentKey])
+    ?? currentReasoning?.defaultEffort
+    ?? ''
   // Stops follow the current model's declared efforts only, in canonical order —
   // a model without xhigh never shows an xhigh stop, and a non-reasoning model
   // shows no effort control at all.
-  const reasoningOptions = (currentReasoning?.efforts ?? [])
-    .filter(effort => effort.id !== '')
-    .slice()
-    .sort((left, right) => {
-      const leftIndex = REASONING_LEVELS.indexOf(left.id as (typeof REASONING_LEVELS)[number])
-      const rightIndex = REASONING_LEVELS.indexOf(right.id as (typeof REASONING_LEVELS)[number])
-      return (leftIndex < 0 ? REASONING_LEVELS.length : leftIndex) - (rightIndex < 0 ? REASONING_LEVELS.length : rightIndex)
-    })
-  const hasEffortControl = snapshot.current !== null && reasoningOptions.length > 0
+  const reasoningOptions = (() => {
+    const base = (currentReasoning?.efforts ?? [])
+      .filter(effort => effort.id !== '')
+      .slice()
+      .sort((left, right) => {
+        const leftIndex = REASONING_LEVELS.indexOf(left.id as (typeof REASONING_LEVELS)[number])
+        const rightIndex = REASONING_LEVELS.indexOf(right.id as (typeof REASONING_LEVELS)[number])
+        return (leftIndex < 0 ? REASONING_LEVELS.length : leftIndex) - (rightIndex < 0 ? REASONING_LEVELS.length : rightIndex)
+      })
+    if (currentReasoning === undefined) return base
+    let next = base
+    // NB: no synthetic 'default' here on purpose — the empty option ("Provider
+    // default", value "") already means "omit the param". Injecting an extra
+    // 'default' produced two near-identical rows in the dropdown.
+    // 'off' stays synthetic: it is the only explicit "disable reasoning" signal.
+    if (!next.some(effort => effort.id === 'off')) {
+      next = [...next, { id: 'off', name: t('palette.reasoningOff') }]
+    }
+    return next
+  })()
+  const heldEffort = holdLastGood(
+    current === undefined ? undefined : { options: reasoningOptions, value: currentEffort },
+    lastEffortRef.current,
+    settled,
+  )
+  lastEffortRef.current = heldEffort.last
+  const displayOptions = heldEffort.value?.options ?? reasoningOptions
+  const displayEffort = heldEffort.value?.value ?? currentEffort
+  const hasEffortControl = snapshot.current !== null && displayOptions.length > 0
   const [badges, setBadges] = useState<Map<string, Map<string, ModelBadges>>>(new Map())
   useEffect(() => {
     if (badgeIndex !== null) {
@@ -346,47 +588,97 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
   }, [api])
 
   return (
-    <div className="dmp-launcher">
+    <div className="dsa-launcher" ref={quickRef}>
       <button
         type="button"
-        className="dmp-trigger"
+        className="dsa-trigger"
+        style={triggerWidth === null ? undefined : { width: triggerWidth }}
         disabled={locked || !available}
-        onClick={() => show()}
-        title={`${currentLabel}${providerLabel === undefined ? '' : ` · ${providerLabel}`} · Alt+M`}
+        onClick={toggleQuick}
+        onContextMenu={event => { event.preventDefault(); setQuickOpen(false); show() }}
+        title={`${currentLabel}${providerLabel === undefined ? '' : ` · ${providerLabel}`}`}
         aria-label={t('trigger.aria')}
+        aria-haspopup="menu"
+        aria-expanded={quickOpen}
       >
-        <span className="dmp-trigger-icon" aria-hidden="true">⌘</span>
-        <span className="dmp-trigger-model">{currentLabel}</span>
-        {providerLabel !== undefined && <span className="dmp-trigger-provider">· {providerLabel}</span>}
-        <kbd>Alt M</kbd>
+        <span className="dsa-trigger-inner" ref={triggerInnerRef}>
+          <span className="dsa-trigger-icon" aria-hidden="true">⌘</span>
+          <span className="dsa-trigger-model">{currentLabel}</span>
+          {snapshot.current !== null && (
+            <span className="dsa-trigger-provider" title={providerLabel}>
+              <ProviderIcon id={providerMeta(snapshot.current.provider).icon} size={12} colored />
+            </span>
+          )}
+        </span>
       </button>
+      {quickOpen && !open && (
+        <div className="dsa-quick" role="menu" aria-label={t('palette.quickPresets')}>
+          {quickChoices.length === 0 && (
+            <div className="dsa-quick-empty">{t('palette.quickEmpty')}</div>
+          )}
+          {quickChoices.map(choice => {
+            const isCurrent = snapshot.current?.provider === choice.provider.id && snapshot.current.model === choice.model.id
+            const saved = effortMap[choice.key]
+            return (
+              <button
+                key={choice.key}
+                type="button"
+                role="menuitem"
+                className={`dsa-quick-item${isCurrent ? ' is-active' : ''}`}
+                onClick={() => void applyQuick(choice)}
+              >
+                <span className="dsa-quick-main">
+                  <span className="dsa-quick-name">{choice.model.name}</span>
+                  <span className="dsa-quick-sub">
+                    <span className="dsa-result-provider" title={choice.provider.name}>
+                      <ProviderIcon id={providerMeta(choice.provider.id).icon} size={12} colored />
+                    </span>
+                    <span>{choice.model.id}</span>
+                    {saved !== undefined && saved !== '' && <span> · ⚡{saved}</span>}
+                  </span>
+                </span>
+                {isCurrent && <span className="dsa-quick-check" aria-hidden="true">✓</span>}
+              </button>
+            )
+          })}
+          <button type="button" className="dsa-quick-all" onClick={() => { setQuickOpen(false); show() }}>
+            {t('palette.quickAll')}
+          </button>
+        </div>
+      )}
 
-      {!locked && available && hasEffortControl && (
-        <EffortSlider
-          compact
-          value={currentEffort}
-          options={reasoningOptions}
-          defaultLabel={t('palette.providerDefault')}
-          label={t('palette.effort')}
-          disabled={effortBusy}
-          onChange={value => void chooseEffort(value)}
-        />
+      {!locked && available && (
+        <span
+          className="dsa-effort-slot"
+          aria-hidden={!hasEffortControl}
+          style={hasEffortControl ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+        >
+          <EffortSelect
+            compact
+            value={displayEffort}
+            options={displayOptions}
+            defaultLabel={t('palette.providerDefault')}
+            label={t('palette.effort')}
+            disabled={effortBusy || !hasEffortControl}
+            onChange={value => void chooseEffort(value)}
+          />
+        </span>
       )}
 
       {open && createPortal(
-        <div className="dmp-overlay" role="presentation" onMouseDown={(event) => {
+        <div className="dsa-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) close()
         }}>
-          <section className="dmp-dialog" role="dialog" aria-modal="true" aria-label={t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : 'relay.title')}>
-            <header className="dmp-header">
+          <section className="dsa-dialog" role="dialog" aria-modal="true" aria-label={t('palette.title')}>
+            <header className="dsa-header">
               <div>
-                <h2>{t(view === 'models' ? 'palette.title' : view === 'media' ? 'media.title' : view === 'catalog' ? 'config.templateTitle' : view === 'config' ? 'config.title' : 'relay.title')}</h2>
-                <p>{view === 'models' ? `${choices.length} ${t('palette.models')} · ${t('palette.shortcut')}` : view === 'catalog' ? t('config.templateHint') : t(view === 'media' ? 'media.subtitle' : view === 'config' ? 'config.subtitle' : 'relay.subtitle')}</p>
+                <h2>{t('palette.title')}</h2>
+                <p>{`${choices.length} ${t('palette.models')}`}</p>
               </div>
-              <button type="button" className="dmp-close" onClick={close} aria-label={t('palette.close')}>×</button>
+              <button type="button" className="dsa-close" onClick={close} aria-label={t('palette.close')}>×</button>
             </header>
 
-            {view === 'models' && <div className="dmp-search-wrap">
+            <div className="dsa-search-wrap">
               <span aria-hidden="true">⌕</span>
               <input
                 ref={searchRef}
@@ -402,92 +694,55 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 aria-label={t('palette.search')}
               />
               {query !== '' && <button type="button" onClick={() => setQuery('')} aria-label={t('palette.clear')}>×</button>}
-            </div>}
+            </div>
 
-            {view === 'models' && (snapshot.error !== null || error !== null) && (
-              <div className="dmp-error">
+            {(snapshot.error !== null || error !== null) && (
+              <div className="dsa-error">
                 <span>{error ?? snapshot.error}</span>
                 <button type="button" onClick={load}>{t('palette.retry')}</button>
               </div>
             )}
 
-            <div className="dmp-body">
-              <nav className="dmp-providers" aria-label={t('palette.providers')}>
+            <div className="dsa-body">
+              <nav className="dsa-providers" aria-label={t('palette.providers')}>
+                <div className="dsa-provider-divider" />
                 <button
                   type="button"
-                  className={`dmp-media-nav${view === 'media' ? ' is-active' : ''}`}
-                  onClick={() => setView('media')}
-                >
-                  <span>{t('media.nav')}</span><small>5</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'config' ? ' is-active' : ''}`}
-                  onClick={() => setView('config')}
-                >
-                  <span>{t('config.nav')}</span><small>⚙</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'catalog' ? ' is-active' : ''}`}
-                  onClick={() => setView('catalog')}
-                >
-                  <span>{t('palette.navCatalog')}</span><small>＋</small>
-                </button>
-                <button
-                  type="button"
-                  className={`dmp-media-nav${view === 'relay' ? ' is-active' : ''}`}
-                  onClick={() => setView('relay')}
-                >
-                  <span>{t('relay.nav')}</span><small>↗</small>
-                </button>
-                <div className="dmp-provider-divider" />
-                <button
-                  type="button"
-                  className={view === 'models' && providerId === null && quickFilter === 'all' ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('all') }}
-                >
+                  className={providerId === null && quickFilter === 'all' ? 'is-active' : ''}
+                  onClick={() => { setProviderId(null); setQuickFilter('all') }}>
                   <span>{t('palette.allModels')}</span><small>{choices.length}</small>
                 </button>
                 <button
                   type="button"
-                  className={view === 'models' && providerId === null && quickFilter === 'favorites' ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('favorites') }}
-                >
+                  className={providerId === null && quickFilter === 'favorites' ? 'is-active' : ''}
+                  onClick={() => { setProviderId(null); setQuickFilter('favorites') }}>
                   <span>{t('palette.favorites')}</span><small>{favoriteCount}</small>
                 </button>
                 <button
                   type="button"
-                  className={view === 'models' && providerId === null && quickFilter === 'recents' ? 'is-active' : ''}
-                  onClick={() => { setView('models'); setProviderId(null); setQuickFilter('recents') }}
-                >
+                  className={providerId === null && quickFilter === 'recents' ? 'is-active' : ''}
+                  onClick={() => { setProviderId(null); setQuickFilter('recents') }}>
                   <span>{t('palette.recents')}</span><small>{recentCount}</small>
                 </button>
-                <div className="dmp-provider-divider" />
-                <div className="dmp-provider-group-label">{t('palette.configuredProviders')}</div>
+                <div className="dsa-provider-divider" />
+                <div className="dsa-provider-group-label">{t('palette.configuredProviders')}</div>
                 {providers.map((provider) => (
                   <button
                     key={provider.id}
                     type="button"
-                    className={view === 'models' && providerId === provider.id ? 'is-active' : ''}
-                    onClick={() => { setView('models'); setProviderId(provider.id); setQuickFilter('all') }}
+                    className={providerId === provider.id ? 'is-active' : ''}
+                    onClick={() => { setProviderId(provider.id); setQuickFilter('all') }}
                     title={`${provider.name} · ${provider.id}`}
                   >
-                    <span className="dmp-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
+                    <span className="dsa-rail-icon"><ProviderIcon id={providerMeta(provider.id).icon} size={14} colored /></span>
                     <span>{provider.name}</span><small>{provider.models.length}</small>
                   </button>
                 ))}
               </nav>
 
-              {view === 'media' ? (
-                <MediaPanel t={t} />
-              ) : view === 'config' || view === 'catalog' ? (
-                <ConfigPanel api={api} isLoopback={isLoopback} mode={view} onSwitchMode={next => setView(next)} t={t} />
-              ) : view === 'relay' ? (
-                <RelayPanel onOpenConfig={() => setView('config')} t={t} />
-              ) : <main className="dmp-results">
-                {snapshot.status === 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.loading')}</div>}
-                {snapshot.status !== 'loading' && results.length === 0 && <div className="dmp-empty">{t('palette.empty')}</div>}
+              <main className="dsa-results">
+                {snapshot.status === 'loading' && results.length === 0 && <div className="dsa-empty">{t('palette.loading')}</div>}
+                {snapshot.status !== 'loading' && results.length === 0 && <div className="dsa-empty">{t('palette.empty')}</div>}
                 {results.map((choice, index) => {
                   const isCurrent = snapshot.current?.provider === choice.provider.id && snapshot.current.model === choice.model.id
                   const isFavorite = favorites.includes(choice.key)
@@ -495,23 +750,23 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                   return (
                     <div
                       key={choice.key}
-                      className={`dmp-result${index === cursor ? ' is-cursor' : ''}${isCurrent ? ' is-current' : ''}`}
+                      className={`dsa-result${index === cursor ? ' is-cursor' : ''}${isCurrent ? ' is-current' : ''}`}
                       onMouseEnter={() => setCursor(index)}
                     >
                       <button
                         ref={(node) => { rowRefs.current[index] = node }}
                         type="button"
-                        className="dmp-result-select"
+                        className="dsa-result-select"
                         onClick={() => void choose(choice)}
                       >
-                        <span className="dmp-result-main">
-                          <span className="dmp-result-title">
+                        <span className="dsa-result-main">
+                          <span className="dsa-result-title">
                             {choice.model.name}
                             {(() => {
                               const badge = badges.get(choice.provider.id)?.get(choice.model.id)
                               if (badge === undefined) return null
                               return (
-                                <span className="dmp-result-badges">
+                                <span className="dsa-result-badges">
                                   {badge.free && <em className="is-free">free</em>}
                                   {badge.image && <em title="vision">👁</em>}
                                   {badge.context !== undefined && <em>{formatTokenCount(badge.context)}</em>}
@@ -521,18 +776,26 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                             })()}
                             {isCurrent && <em>{t('palette.current')}</em>}
                             {isRecent && !isCurrent && <em>{t('palette.recent')}</em>}
+                            {effortMap[choice.key] !== undefined && effortMap[choice.key] !== '' && (
+                              <em className="is-effort" title={effortMap[choice.key]}>⚡{effortMap[choice.key]}</em>
+                            )}
+                            {appliedKey === choice.key && !isCurrent && (
+                              <em className="is-applied">✓</em>
+                            )}
                           </span>
-                          <span className="dmp-result-meta">
-                            <strong>{choice.provider.name}</strong>
+                          <span className="dsa-result-meta">
+                            <span className="dsa-result-provider" title={choice.provider.name}>
+                              <ProviderIcon id={providerMeta(choice.provider.id).icon} size={14} colored />
+                            </span>
                             <span>{choice.model.id}</span>
                           </span>
-                          {choice.model.description !== undefined && <span className="dmp-result-description">{choice.model.description}</span>}
+                          {choice.model.description !== undefined && <span className="dsa-result-description">{choice.model.description}</span>}
                         </span>
-                        {choice.model.reasoning !== undefined && <span className="dmp-reasoning">R</span>}
+                        {choice.model.reasoning !== undefined && <span className="dsa-reasoning">R</span>}
                       </button>
                       <button
                         type="button"
-                        className={`dmp-star${isFavorite ? ' is-favorite' : ''}`}
+                        className={`dsa-star${isFavorite ? ' is-favorite' : ''}`}
                         title={t(isFavorite ? 'favorite.remove' : 'favorite.add')}
                         aria-label={t(isFavorite ? 'favorite.remove' : 'favorite.add')}
                         onClick={() => setFavorites(toggleFavorite(favorites, choice.key))}
@@ -540,11 +803,11 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                     </div>
                   )
                 })}
-              </main>}
+              </main>
             </div>
 
-            <footer className="dmp-footer">
-              <div className="dmp-current">
+            <footer className="dsa-footer">
+              <div className="dsa-current">
                 <span>{t('palette.current')}</span>
                 <strong>{currentLabel}</strong>
                 {snapshot.current?.provider !== undefined && (
@@ -553,16 +816,16 @@ export function ModelPalette({ locked, available, directory, load, select, api, 
                 {providerLabel !== undefined && <small>{providerLabel}</small>}
               </div>
               {hasEffortControl && (
-                <EffortSlider
-                  value={currentEffort}
-                  options={reasoningOptions}
+                <EffortSelect
+                  value={displayEffort}
+                  options={displayOptions}
                   defaultLabel={t('palette.providerDefault')}
                   label={t('palette.effort')}
                   disabled={effortBusy}
                   onChange={value => void chooseEffort(value)}
                 />
               )}
-              {snapshot.failures.length > 0 && <span className="dmp-failures" title={snapshot.failures.map((item) => `${item.name}: ${item.message}`).join('\n')}>{t('palette.failures')} ({snapshot.failures.length})</span>}
+              {snapshot.failures.length > 0 && <span className="dsa-failures" title={snapshot.failures.map((item) => `${item.name}: ${item.message}`).join('\n')}>{t('palette.failures')} ({snapshot.failures.length})</span>}
             </footer>
           </section>
         </div>,

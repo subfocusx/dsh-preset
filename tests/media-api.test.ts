@@ -44,7 +44,7 @@ describe('direct media API client', () => {
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     vi.stubGlobal('fetch', fetch)
     await expect(listMediaModels()).resolves.toMatchObject({ images: [], videos: [] })
-    expect(fetch).toHaveBeenCalledWith('/model-palette/api/media/models', expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith('/dsa-preset/api/media/models', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ kind: 'all', preferred_only: false, free_only: false }),
     }))
@@ -68,14 +68,14 @@ describe('direct media API client', () => {
     await generateImage({ model: 'image-model', prompt: 'image', acknowledgePossibleCharge: true })
     await generateVideo({ model: 'video-model', prompt: 'video' })
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/model-palette/api/media/images/generate', expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, '/dsa-preset/api/media/images/generate', expect.objectContaining({
       body: JSON.stringify({
         model: 'image-model',
         prompt: 'image',
         manual_paid_acknowledgement: MANUAL_PAID_ACKNOWLEDGEMENT,
       }),
     }))
-    expect(fetch).toHaveBeenNthCalledWith(2, '/model-palette/api/media/videos/generate', expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(2, '/dsa-preset/api/media/videos/generate', expect.objectContaining({
       body: JSON.stringify({ model: 'video-model', prompt: 'video' }),
     }))
   })

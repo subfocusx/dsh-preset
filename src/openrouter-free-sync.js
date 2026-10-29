@@ -2,7 +2,7 @@ import { parseOpenRouterFreeModels } from './model-config-api.js'
 import { REQUEST_RETRY_SETTINGS_NAMESPACE, resolveFreeSyncRule, resolveFreeSyncState } from './request-retry-settings.js'
 
 const LLM_SETTINGS_NAMESPACE = 'llm-pi-ai'
-const SYNC_API_PATH = '/model-palette/api/free-sync'
+const SYNC_API_PATH = '/dsa-preset/api/free-sync'
 const OPENROUTER_HOST_PATTERN = /(^|\.)openrouter\.ai$/iu
 const TICK_INTERVAL_MS = 30 * 60 * 1000
 const STARTUP_DELAY_MS = 8_000
@@ -20,12 +20,12 @@ export function registerOpenRouterFreeSync(ctx, settings) {
     kind: 'prefix',
     path: SYNC_API_PATH,
     handler: createFreeSyncHandler(runtime),
-  }), 'dsh-model-palette: free-sync API')
+  }), 'dsa-preset: free-sync API')
   ctx.effect(() => async () => {
     clearTimeout(startupTimer)
     clearInterval(tickTimer)
     await runtime.dispose()
-  }, 'dsh-model-palette: free-sync timers')
+  }, 'dsa-preset: free-sync timers')
 }
 
 /** Create the free-sync runtime so provider synchronization stays unit-testable. */
@@ -63,7 +63,7 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
       try {
         await syncProvider(provider)
       } catch (error) {
-        ctx.logger?.warn?.(`dsh-model-palette: ${trigger} free-sync for "${provider}" failed: ${errorMessage(error)}`)
+        ctx.logger?.warn?.(`dsa-preset: ${trigger} free-sync for "${provider}" failed: ${errorMessage(error)}`)
       }
     }
   }
@@ -102,7 +102,7 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
           path: ['freeSync', 'state', providerId],
           value: state,
         }])
-        ctx.logger?.info?.(`dsh-model-palette: free-sync "${providerId}" now serves ${state.total} free models (+${state.added}/-${state.removed})`)
+        ctx.logger?.info?.(`dsa-preset: free-sync "${providerId}" now serves ${state.total} free models (+${state.added}/-${state.removed})`)
         return { provider: providerId, ...state }
       } catch (error) {
         const message = errorMessage(error)
@@ -113,7 +113,7 @@ export function createFreeSyncRuntime(ctx, settingsApi) {
             value: { lastSyncAt: new Date().toISOString(), error: message },
           }])
         } catch (stateError) {
-          ctx.logger?.warn?.(`dsh-model-palette: free-sync state write failed for "${providerId}": ${errorMessage(stateError)}`)
+          ctx.logger?.warn?.(`dsa-preset: free-sync state write failed for "${providerId}": ${errorMessage(stateError)}`)
         }
         throw error
       } finally {

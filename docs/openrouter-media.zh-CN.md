@@ -29,7 +29,7 @@
 ## 配置
 
 ```yaml
-- id: dsh-model-palette
+- id: dsa-preset
   config:
     openrouterMedia:
       enabled: true
